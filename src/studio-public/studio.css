@@ -1,3 +1,90 @@
+/* ---------------------------------------------------------------------------
+   Design tokens
+   ---------------------------------------------------------------------------
+   One definition per role, light values here and dark values below. Before this
+   the studio had no :root of its own: it inherited whatever assets/style.css
+   happened to set for the printed page, and every surface colour was written as
+   a literal so it would survive that. Dark mode then re-stated ~300 selectors to
+   undo them.
+
+   The rule now: a colour appears as a literal exactly once, in one of the two
+   blocks below. Everything else references a token, so the dark theme is a list
+   of seven value swaps rather than a parallel stylesheet.
+
+   The problem preview is an <iframe>, a separate document, so it keeps the print
+   palette from assets/style.css. These tokens style the studio chrome only.
+--------------------------------------------------------------------------- */
+:root {
+  /* The studio is dark, full stop: there is no theme switch and no light variant.
+     The problem preview is an <iframe> and the PDF is rendered server-side, so both keep
+     the printed page's light palette from assets/style.css - paper stays paper. */
+  color-scheme: dark;
+
+  /* Text */
+  --ink: #e6edf3;
+  --ink-soft: #8b949e;
+  --ink-strong: #f0f6fc;
+
+  /* Lines */
+  --line: #30363d;
+  --line-soft: #30363d;
+
+  /* Surfaces */
+  --surface: #0d1117;
+  --surface-raised: #161b22;
+  --surface-sunken: #0d1117;
+  --code-bg: #161b22;
+
+  /* Accent */
+  --accent: #58a6ff;
+  --accent-ink: #ffffff;
+  --accent-strong: #1f6feb;
+  --accent-strong-hover: #388bfd;
+  --accent-wash: #1c2433;
+  --accent-wash-line: #283347;
+  --hint-bg: #1c2433;
+  --row-selected: #283347;
+
+  /* Controls */
+  --btn-bg: #21262d;
+  --btn-ink: #c9d1d9;
+  --btn-hover-bg: #30363d;
+  --btn-hover-line: #8b949e;
+  --btn-hover-ink: #f0f6fc;
+  --input-bg: #161b22;
+  /* These four had no light declaration at all: light relied on the browser default or on
+     transparency, and only the old dark block named a value. They need a token so the dark
+     theme has somewhere to put it. */
+  --modal-line: #30363d;
+  --form-bg: #0d1117;
+  --switch-wrapper-bg: #161b22;
+  --switch-active-bg: #30363d;
+
+  /* Status */
+  --danger: #ff7b72;
+  --danger-strong: #f85149;
+  --danger-line: #f85149;
+  --danger-bg: rgba(248, 81, 73, 0.15);
+  --ok: #3fb950;
+  --code-ink: #79c0ff;
+  --overlay: rgba(22, 27, 34, 0.9);
+  --hover-wash: rgba(255, 255, 255, 0.05);
+
+  /* Shape and rhythm */
+  --radius-sm: 4px;
+  --radius: 7px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --space-1: 4px;
+  --space-2: 6px;
+  --space-3: 8px;
+  --space-4: 10px;
+  --space-5: 14px;
+  --space-6: 22px;
+  --shadow-1: 0 1px 4px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 6px 24px rgba(0, 0, 0, 0.6);
+}
+
 /* ============================================================
    Styling for "Studio" — the web dashboard for every command.
    Always loaded after /assets/style.css, so it reuses the same
@@ -22,9 +109,9 @@ a {
   font: inherit;
   font-size: 0.95rem;
   border: 1px solid var(--line);
-  background: #fff;
-  color: var(--ink);
-  border-radius: 7px;
+  background: var(--btn-bg);
+  color: var(--btn-ink);
+  border-radius: var(--radius);
   padding: 7px 14px;
   cursor: pointer;
   display: inline-flex;
@@ -35,8 +122,9 @@ a {
 }
 
 .btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+  background: var(--btn-hover-bg);
+  border-color: var(--btn-hover-line);
+  color: var(--btn-hover-ink);
 }
 
 .btn:disabled {
@@ -47,25 +135,26 @@ a {
 }
 
 .btn-primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  color: var(--accent-ink);
 }
 
 .btn-primary:hover {
-  filter: brightness(1.08);
-  color: #fff;
+  background: var(--accent-strong-hover);
+  border-color: var(--accent-strong-hover);
+  color: var(--accent-ink);
 }
 
 .btn-danger {
-  border-color: #d94f45;
-  color: #b3261e;
+  border-color: var(--danger-line);
+  color: var(--danger-strong);
 }
 
 .btn-danger:hover {
-  background: #fdecea;
-  border-color: #b3261e;
-  color: #b3261e;
+  background: var(--danger-bg);
+  border-color: var(--danger-strong);
+  color: var(--danger-strong);
 }
 
 .btn-sm {
@@ -85,8 +174,8 @@ a {
   font-weight: 700;
 }
 
-.badge-ok { background: #e6f4e8; color: #2a7a34; }
-.badge-error { background: #fdecea; color: #b3261e; }
+.badge-ok { background: #e6f4e8; color: var(--ok); }
+.badge-error { background: var(--danger-bg); color: var(--danger); }
 .badge-warn { background: #fff4dc; color: #9a6b00; }
 
 /* ---------- Dashboard ---------- */
@@ -99,7 +188,7 @@ a {
   justify-content: space-between;
   gap: 12px;
   padding: 14px 22px;
-  background: #fff;
+  background: var(--surface-raised);
   border-bottom: 1px solid var(--line-soft);
   flex-wrap: wrap;
 }
@@ -119,11 +208,6 @@ a {
 
 /* The sign-out control is a form (POST, not a link), so it needs to sit in the flex row
    like the plain buttons around it rather than forming a block of its own. */
-.topbar-logout {
-  display: contents;
-  margin: 0;
-}
-
 .page-body {
   padding: 20px 22px 60px;
   max-width: 1180px;
@@ -145,7 +229,7 @@ a {
 }
 
 .card {
-  background: #fff;
+  background: var(--surface-raised);
   border: 1px solid var(--line-soft);
   border-radius: 10px;
   padding: 14px 16px 12px;
@@ -173,6 +257,7 @@ a {
   font-weight: 700;
   margin: 1px 0 0;
   line-height: 1.3;
+  color: var(--ink);
 }
 
 .card-meta {
@@ -181,7 +266,7 @@ a {
 }
 
 .card-meta.is-error {
-  color: #b3261e;
+  color: var(--danger);
 }
 
 .card-actions {
@@ -198,7 +283,7 @@ a {
   padding: 50px 20px;
   border: 1px dashed var(--line);
   border-radius: 10px;
-  background: #fff;
+  background: var(--surface-raised);
 }
 
 /* ---------- Export-all / booklet results ---------- */
@@ -216,10 +301,11 @@ a {
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: #fff;
+  background: var(--surface-raised);
   border: 1px solid var(--line-soft);
   border-radius: 7px;
   font-size: 0.9rem;
+  color: var(--ink);
 }
 
 .result-list .name {
@@ -243,17 +329,18 @@ a {
 }
 
 .toast {
-  background: #fff;
+  background: var(--surface-raised);
   border-left: 4px solid var(--accent);
   border-radius: 6px;
   box-shadow: 0 4px 18px rgb(20 24 31 / 18%);
   padding: 10px 14px;
   font-size: 0.9rem;
   animation: toast-in 0.15s ease-out;
+  color: var(--ink);
 }
 
-.toast.toast-error { border-left-color: #b3261e; }
-.toast.toast-ok { border-left-color: #2a7a34; }
+.toast.toast-error { border-left-color: var(--danger); }
+.toast.toast-ok { border-left-color: var(--ok); }
 
 @keyframes toast-in {
   from { transform: translateY(6px); opacity: 0; }
@@ -262,11 +349,13 @@ a {
 
 /* ---------- Modal (dialog) ---------- */
 dialog.modal {
-  border: none;
   border-radius: 12px;
   padding: 0;
   width: min(480px, 92vw);
   box-shadow: 0 10px 40px rgb(20 24 31 / 25%);
+  background: var(--surface-raised);
+  color: var(--ink);
+  border: 1px solid var(--modal-line);
 }
 
 dialog.modal::backdrop {
@@ -297,10 +386,12 @@ dialog.modal::backdrop {
   border: 1px solid var(--line);
   border-radius: 7px;
   margin-bottom: 6px;
+  background: var(--surface-sunken);
+  color: var(--ink);
 }
 
 .modal-error {
-  color: #b3261e;
+  color: var(--danger);
   font-size: 0.85rem;
   min-height: 1.3em;
   margin: 2px 0 10px;
@@ -331,7 +422,7 @@ dialog.modal.modal-wide {
 .asset-drop.is-over {
   border-color: var(--accent);
   color: var(--accent);
-  background: #f2f5fc;
+  background: var(--accent-wash);
 }
 
 .asset-grid {
@@ -347,7 +438,7 @@ dialog.modal.modal-wide {
   border: 1px solid var(--line-soft);
   border-radius: 8px;
   overflow: hidden;
-  background: #f6f8fa;
+  background: var(--code-bg);
   aspect-ratio: 1 / 1;
   display: flex;
   align-items: center;
@@ -364,11 +455,12 @@ dialog.modal.modal-wide {
   position: absolute;
   left: 0; right: 0; bottom: 0;
   font-size: 0.65rem;
-  background: rgb(255 255 255 / 88%);
+  background: var(--overlay);
   padding: 2px 4px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: var(--ink);
 }
 
 .asset-item .asset-del {
@@ -380,7 +472,7 @@ dialog.modal.modal-wide {
   border-radius: 50%;
   border: none;
   background: rgb(179 38 30 / 88%);
-  color: #fff;
+  color: var(--accent-ink);
   cursor: pointer;
   font-size: 0.75rem;
   line-height: 1;
@@ -416,12 +508,12 @@ dialog.modal.modal-wide {
 }
 
 .editor-status.is-dirty .dot { background: #c98a1c; }
-.editor-status.is-ok .dot { background: #2a7a34; }
-.editor-status.is-error .dot { background: #b3261e; }
+.editor-status.is-ok .dot { background: var(--ok); }
+.editor-status.is-error .dot { background: var(--danger); }
 
 .editor-error-banner {
   flex: none;
-  background: #fdecea;
+  background: var(--danger-bg);
   border-bottom: 1px solid #f2b8b2;
   color: #7c1d17;
   padding: 10px 22px;
@@ -472,7 +564,8 @@ dialog.modal.modal-wide {
   font-size: 0.92rem;
   line-height: 1.55;
   tab-size: 2;
-  background: #fdfdfd;
+  background: var(--surface-sunken);
+  color: var(--ink);
 }
 
 .preview-pane {
@@ -490,11 +583,7 @@ dialog.modal.modal-wide {
   background: #fff;
 }
 
-@media (max-width: 860px) {
-  .editor-body { flex-direction: column; }
-  .editor-pane { border-right: none; border-bottom: 1px solid var(--line-soft); flex: 1 1 45%; }
-  .preview-pane { flex: 1 1 55%; }
-}
+/* Responsive rules live together at the end of this file. */
 
 /* ---------- Form-based editor ---------- */
 .editor-form {
@@ -504,6 +593,7 @@ dialog.modal.modal-wide {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  background: var(--form-bg);
 }
 
 .editor-form fieldset {
@@ -537,8 +627,9 @@ dialog.modal.modal-wide {
   border: 1px solid var(--line);
   border-radius: 6px;
   margin-top: 3px;
-  background: #fdfdfd;
+  background: var(--input-bg);
   line-height: 1.5;
+  color: var(--ink);
 }
 
 .editor-form textarea {
@@ -582,7 +673,7 @@ dialog.modal.modal-wide {
   border-radius: 50%;
   border: none;
   background: rgb(179 38 30 / 80%);
-  color: #fff;
+  color: var(--accent-ink);
   cursor: pointer;
   font-size: 0.75rem;
   line-height: 1;
@@ -609,7 +700,7 @@ dialog.modal.modal-wide {
 .btn-toggle-active {
   background: var(--accent) !important;
   border-color: var(--accent) !important;
-  color: #fff !important;
+  color: var(--accent-ink) !important;
 }
 
 /* ---------- Image Input & Autocomplete ---------- */
@@ -639,7 +730,7 @@ dialog.modal.modal-wide {
   font-size: 0.82rem;
   color: var(--ink-soft);
   margin: 4px 0 8px;
-  background: #f0f4fb;
+  background: var(--hint-bg);
   padding: 6px 10px;
   border-radius: 6px;
   border-left: 3px solid var(--accent);
@@ -648,10 +739,10 @@ dialog.modal.modal-wide {
 
 .field-hint code {
   font-family: var(--mono);
-  background: #e2eaf7;
+  background: var(--accent-wash-line);
   padding: 1px 5px;
   border-radius: 3px;
-  color: var(--accent);
+  color: var(--code-ink);
   font-size: 0.85em;
 }
 
@@ -661,10 +752,10 @@ dialog.modal.modal-wide {
   z-index: 1000;
   width: 320px;
   max-width: 90vw;
-  background: #fff;
+  background: var(--surface-raised);
   border: 1px solid var(--line);
   border-radius: 8px;
-  box-shadow: 0 6px 24px rgba(20, 24, 31, 0.2);
+  box-shadow: var(--shadow-2);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -680,7 +771,7 @@ dialog.modal.modal-wide {
   justify-content: space-between;
   align-items: center;
   padding: 6px 10px;
-  background: #f6f8fa;
+  background: var(--code-bg);
   border-bottom: 1px solid var(--line-soft);
   font-size: 0.78rem;
   color: var(--ink-soft);
@@ -708,7 +799,7 @@ dialog.modal.modal-wide {
 
 .img-ac-item:hover,
 .img-ac-item.is-selected {
-  background: #edf2fc;
+  background: var(--row-selected);
   border-color: var(--accent);
 }
 
@@ -717,7 +808,7 @@ dialog.modal.modal-wide {
   height: 36px;
   object-fit: contain;
   border-radius: 4px;
-  background: #fff;
+  background: var(--surface-raised);
   border: 1px solid var(--line-soft);
   flex-shrink: 0;
 }
@@ -756,6 +847,7 @@ dialog.modal.modal-wide {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  background: var(--switch-wrapper-bg);
 }
 
 .mode-switch-label {
@@ -795,11 +887,16 @@ dialog.modal.modal-wide {
   background: rgba(0, 0, 0, 0.04);
 }
 
+.switch-btn:hover:not(.is-active) {
+  background: var(--hover-wash);
+  color: var(--ink);
+}
+
 .switch-btn.is-active {
-  background: #fff;
+  background: var(--switch-active-bg);
   color: var(--accent);
   font-weight: 700;
-  box-shadow: 0 1px 4px rgba(20, 24, 31, 0.12);
+  box-shadow: var(--shadow-1);
 }
 
 /* ---------- Booklet Dialog ---------- */
@@ -834,8 +931,9 @@ dialog.modal.modal-wide {
   border: 1px solid var(--line);
   border-radius: 6px;
   margin-top: 3px;
-  background: #fdfdfd;
+  background: var(--surface-sunken);
   line-height: 1.5;
+  color: var(--ink);
 }
 
 .booklet-field textarea {
@@ -893,19 +991,19 @@ dialog.modal.modal-wide {
   cursor: grab;
   font-size: 0.9rem;
   margin-bottom: 0 !important;
-  background: #fff;
+  background: var(--surface-raised);
   transition: background 0.1s ease, border-color 0.1s ease, transform 0.1s ease;
   user-select: none;
 }
 
 .bk-problem-item:hover {
-  background: #f2f5fc;
+  background: var(--accent-wash);
   border-color: var(--accent);
 }
 
 .bk-problem-item.is-dragging {
   opacity: 0.4;
-  background: #e2eaf7;
+  background: var(--accent-wash-line);
   border: 1px dashed var(--accent);
 }
 
@@ -994,7 +1092,7 @@ dialog.modal.modal-wide {
 }
 
 .btn-icon:hover:not(:disabled) {
-  background: #e2eaf7;
+  background: var(--accent-wash-line);
   color: var(--accent);
   border-color: var(--accent);
 }
@@ -1004,312 +1102,100 @@ dialog.modal.modal-wide {
   cursor: not-allowed;
 }
 
-/* ---------- Dark Mode Styles ---------- */
-[data-theme="dark"] {
-  --ink: #e6edf3;
-  --ink-soft: #8b949e;
-  --line: #30363d;
-  --line-soft: #21262d;
-  --accent: #58a6ff;
-  --surface: #0d1117;
-  --code-bg: #161b22;
+/* ---------------------------------------------------------------------------
+   Responsive
+   ---------------------------------------------------------------------------
+   Every breakpoint is here rather than beside the rule it adjusts, so the set of
+   widths the studio actually supports can be read in one place.
+
+   The card grids need nothing: they are repeat(auto-fill, minmax(...)) already
+   and reflow on their own. What does not survive a narrow window is the topbar
+   (title and a row of actions competing for one line) and the side-by-side
+   editor.
+--------------------------------------------------------------------------- */
+
+/* Laptop: give the content back the space the wide gutters were using. */
+@media (max-width: 1024px) {
+  .page-body {
+    padding: var(--space-6) var(--space-5) 48px;
+  }
 }
 
-[data-theme="dark"] body.studio {
-  background: #0d1117;
-  color: #e6edf3;
+/* Tablet and below: the editor's two panes stop fitting side by side. */
+@media (max-width: 860px) {
+  .editor-body {
+    flex-direction: column;
+  }
+
+  .editor-pane {
+    border-right: none;
+    border-bottom: 1px solid var(--line-soft);
+    flex: 1 1 45%;
+  }
+
+  .preview-pane {
+    flex: 1 1 55%;
+  }
 }
 
-[data-theme="dark"] .topbar {
-  background: #161b22;
-  border-bottom-color: #30363d;
+/* Narrow: stack the topbar so the title keeps its own line, and let the actions
+   wrap into a full-width row instead of being squeezed. */
+@media (max-width: 720px) {
+  .topbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-4);
+    padding: var(--space-4) var(--space-5);
+  }
+
+  .topbar-actions {
+    justify-content: flex-start;
+  }
+
+  .page-body {
+    padding: var(--space-5) var(--space-4) 40px;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .card-actions {
+    flex-wrap: wrap;
+  }
 }
 
-[data-theme="dark"] .topbar-title {
-  color: #58a6ff;
+/* Phone: one column of controls, each wide enough to be a comfortable target. */
+@media (max-width: 480px) {
+  .topbar-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-2);
+  }
+
+  .topbar-actions .btn {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .page-body {
+    padding: var(--space-4) var(--space-3) 32px;
+  }
+
+  .editor-topbar {
+    gap: var(--space-2);
+  }
 }
 
-[data-theme="dark"] .btn {
-  background: #21262d;
-  border-color: #30363d;
-  color: #c9d1d9;
-}
-
-[data-theme="dark"] .btn:hover {
-  background: #30363d;
-  border-color: #8b949e;
-  color: #f0f6fc;
-}
-
-[data-theme="dark"] .btn-primary {
-  background: #1f6feb;
-  border-color: #1f6feb;
-  color: #fff;
-}
-
-[data-theme="dark"] .btn-primary:hover {
-  background: #388bfd;
-  border-color: #388bfd;
-}
-
-[data-theme="dark"] .card {
-  background: #161b22;
-  border-color: #30363d;
-}
-
-[data-theme="dark"] .card-name {
-  color: #e6edf3;
-}
-
-[data-theme="dark"] .card-meta {
-  color: #8b949e;
-}
-
-[data-theme="dark"] .empty-state {
-  background: #161b22;
-  border-color: #30363d;
-  color: #8b949e;
-}
-
-[data-theme="dark"] .result-list li {
-  background: #161b22;
-  border-color: #30363d;
-  color: #e6edf3;
-}
-
-[data-theme="dark"] dialog.modal {
-  background: #161b22;
-  color: #e6edf3;
-  border: 1px solid #30363d;
-}
-
-[data-theme="dark"] .modal-body h2 {
-  color: #58a6ff;
-}
-
-[data-theme="dark"] .modal-body p.hint {
-  color: #8b949e;
-}
-
-[data-theme="dark"] .modal-body input[type="text"] {
-  background: #0d1117;
-  border-color: #30363d;
-  color: #e6edf3;
-}
-
-[data-theme="dark"] .editor-pane textarea {
-  background: #0d1117;
-  color: #e6edf3;
-}
-
-[data-theme="dark"] .editor-form {
-  background: #0d1117;
-}
-
-[data-theme="dark"] .editor-form fieldset {
-  border-color: #30363d;
-}
-
-[data-theme="dark"] .editor-form legend {
-  color: #58a6ff;
-}
-
-[data-theme="dark"] .editor-form label {
-  color: #8b949e;
-}
-
-[data-theme="dark"] .editor-form input[type="text"],
-[data-theme="dark"] .editor-form textarea {
-  background: #161b22;
-  border-color: #30363d;
-  color: #e6edf3;
-}
-
-[data-theme="dark"] .editor-form input:focus,
-[data-theme="dark"] .editor-form textarea:focus {
-  border-color: #58a6ff;
-  outline-color: #58a6ff;
-}
-
-[data-theme="dark"] .form-group-item {
-  background: #161b22;
-  border-color: #30363d;
-}
-
-[data-theme="dark"] .form-group-item .group-label {
-  color: #8b949e;
-}
-
-[data-theme="dark"] .field-hint {
-  background: #1c2433;
-  border-left-color: #58a6ff;
-  color: #c9d1d9;
-}
-
-[data-theme="dark"] .field-hint code {
-  background: #283347;
-  color: #79c0ff;
-}
-
-[data-theme="dark"] .mode-switch-wrapper {
-  background: #161b22;
-  border-color: #30363d;
-}
-
-[data-theme="dark"] .mode-switch-label {
-  color: #8b949e;
-}
-
-[data-theme="dark"] .segmented-switch {
-  background: #21262d;
-  border-color: #30363d;
-}
-
-[data-theme="dark"] .segmented-switch .switch-btn {
-  color: #8b949e;
-}
-
-[data-theme="dark"] .segmented-switch .switch-btn:hover:not(.is-active) {
-  background: rgba(255, 255, 255, 0.05);
-  color: #e6edf3;
-}
-
-[data-theme="dark"] .segmented-switch .switch-btn.is-active {
-  background: #30363d;
-  color: #58a6ff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
-}
-
-[data-theme="dark"] .img-autocomplete {
-  background: #161b22;
-  border-color: #30363d;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
-}
-
-[data-theme="dark"] .img-autocomplete-head {
-  background: #21262d;
-  border-bottom-color: #30363d;
-  color: #8b949e;
-}
-
-[data-theme="dark"] .img-ac-item:hover,
-[data-theme="dark"] .img-ac-item.is-selected {
-  background: #283347;
-  border-color: #58a6ff;
-}
-
-[data-theme="dark"] .img-ac-name {
-  color: #e6edf3;
-}
-
-[data-theme="dark"] .img-ac-thumb {
-  background: #0d1117;
-  border-color: #30363d;
-}
-
-[data-theme="dark"] .img-ac-empty {
-  color: #8b949e;
-}
-
-[data-theme="dark"] .toast {
-  background: #161b22;
-  color: #e6edf3;
-  border: 1px solid #30363d;
-  border-left: 4px solid var(--accent);
-}
-
-[data-theme="dark"] .asset-item {
-  background: #0d1117;
-  border-color: #30363d;
-}
-
-[data-theme="dark"] .asset-item .asset-name {
-  background: rgba(22, 27, 34, 0.9);
-  color: #e6edf3;
-}
-
-[data-theme="dark"] .asset-drop {
-  border-color: #30363d;
-  color: #8b949e;
-}
-
-[data-theme="dark"] .asset-drop.is-over {
-  background: #1c2433;
-  border-color: #58a6ff;
-  color: #58a6ff;
-}
-
-[data-theme="dark"] .btn-danger {
-  border-color: #f85149;
-  color: #ff7b72;
-}
-
-[data-theme="dark"] .btn-danger:hover {
-  background: rgba(248, 81, 73, 0.15);
-  border-color: #ff7b72;
-  color: #ff7b72;
-}
-
-/* dark mode: booklet dialog */
-[data-theme="dark"] .booklet-field {
-  border-color: #30363d;
-}
-
-[data-theme="dark"] .booklet-field legend {
-  color: #58a6ff;
-}
-
-[data-theme="dark"] .booklet-field label {
-  color: #8b949e;
-}
-
-[data-theme="dark"] .booklet-field input[type="text"],
-[data-theme="dark"] .booklet-field textarea {
-  background: #161b22;
-  border-color: #30363d;
-  color: #e6edf3;
-}
-
-[data-theme="dark"] .bk-logo-preview {
-  background: #0d1117;
-  border-color: #30363d;
-}
-
-[data-theme="dark"] .bk-problem-item {
-  background: #161b22;
-  border-color: #30363d;
-}
-
-[data-theme="dark"] .bk-problem-item:hover {
-  background: #283347;
-  border-color: #58a6ff;
-}
-
-[data-theme="dark"] .bk-problem-item.is-dragging {
-  background: #21262d;
-  border-color: #58a6ff;
-}
-
-[data-theme="dark"] .bk-item-order {
-  background: #21262d;
-  color: #e6edf3;
-}
-
-[data-theme="dark"] .btn-icon {
-  border-color: #30363d;
-  color: #8b949e;
-}
-
-[data-theme="dark"] .btn-icon:hover:not(:disabled) {
-  background: #30363d;
-  color: #58a6ff;
-  border-color: #58a6ff;
-}
-
-[data-theme="dark"] .bk-problem-name {
-  color: #e6edf3;
-}
-
-[data-theme="dark"] .bk-problem-code {
-  color: #8b949e;
+/* Respect a reduced-motion preference: the studio animates toasts and the
+   preview refresh, neither of which carries meaning. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

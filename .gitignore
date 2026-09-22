@@ -22,3 +22,4 @@ build/
 # Your own problems live here locally and stay out of git.
 problems/*
 !problems/.gitkeep
+PROJECT-CONTEXT.md

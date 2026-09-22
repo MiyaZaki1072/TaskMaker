@@ -20,10 +20,8 @@ export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
  * KaTeX / highlight.js files served straight out of node_modules.
  *
  * express.static sends no Cache-Control at all by default, so a browser revalidates every one of
- * these on every single page load. The Thai faces are uncompressed TrueType — THSarabunNew.ttf
- * alone is 468 KB — so over a tunnel that is roughly 800 KB of font re-checked each time you open
- * a problem. `immutable` matters as much as the long max-age here: it stops the revalidation on
- * a plain reload too, not just the download.
+ * these on every single page load. `immutable` matters as much as the long max-age here: it stops
+ * the revalidation on a plain reload too, not just the download.
  *
  * Deliberately NOT applied to studio.css / dashboard.js / editor.js or assets/style.css. Those
  * change whenever the app is redeployed and their URLs carry no content hash, so they keep

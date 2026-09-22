@@ -3,31 +3,33 @@
    Editing this one file = changing the look of the whole system
    ============================================================ */
 
-/* ---------- TH Sarabun New font (loaded locally, no internet needed) ---------- */
+/* ---------- TH Sarabun New font (loaded locally, no internet needed) ----------
+   WOFF2 rather than the original TrueType: same outlines, ~73% fewer bytes. The regular
+   and bold faces alone were 826 KB of every cold page load before this. */
 @font-face {
   font-family: 'TH Sarabun New';
-  src: url('/assets/fonts/THSarabunNew.ttf') format('truetype');
+  src: url('/assets/fonts/THSarabunNew.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: block;
 }
 @font-face {
   font-family: 'TH Sarabun New';
-  src: url('/assets/fonts/THSarabunNew-Bold.ttf') format('truetype');
+  src: url('/assets/fonts/THSarabunNew-Bold.woff2') format('woff2');
   font-weight: 700;
   font-style: normal;
   font-display: block;
 }
 @font-face {
   font-family: 'TH Sarabun New';
-  src: url('/assets/fonts/THSarabunNew-Italic.ttf') format('truetype');
+  src: url('/assets/fonts/THSarabunNew-Italic.woff2') format('woff2');
   font-weight: 400;
   font-style: italic;
   font-display: block;
 }
 @font-face {
   font-family: 'TH Sarabun New';
-  src: url('/assets/fonts/THSarabunNew-BoldItalic.ttf') format('truetype');
+  src: url('/assets/fonts/THSarabunNew-BoldItalic.woff2') format('woff2');
   font-weight: 700;
   font-style: italic;
   font-display: block;

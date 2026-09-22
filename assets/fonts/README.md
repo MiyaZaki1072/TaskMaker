@@ -5,10 +5,10 @@ none of them are fetched from a CDN, so preview and the PDF look identical on ev
 
 | File | Font | Used for |
 |---|---|---|
-| `THSarabunNew.ttf` | TH Sarabun New Regular | The document's main typeface |
-| `THSarabunNew-Bold.ttf` | TH Sarabun New Bold | Headings, bold text |
-| `THSarabunNew-Italic.ttf` | TH Sarabun New Italic | Italic text |
-| `THSarabunNew-BoldItalic.ttf` | TH Sarabun New Bold Italic | Bold italic text |
+| `THSarabunNew.woff2` | TH Sarabun New Regular | The document's main typeface |
+| `THSarabunNew-Bold.woff2` | TH Sarabun New Bold | Headings, bold text |
+| `THSarabunNew-Italic.woff2` | TH Sarabun New Italic | Italic text |
+| `THSarabunNew-BoldItalic.woff2` | TH Sarabun New Bold Italic | Bold italic text |
 | `JetBrainsMono-Regular.woff2` | JetBrains Mono Regular | Input/output data and code |
 | `JetBrainsMono-Bold.woff2` | JetBrains Mono Bold | Bold code |
 

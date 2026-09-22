@@ -11,16 +11,6 @@ function shellHead(title: string): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(title)}</title>
-<script>
-  (function() {
-    try {
-      const theme = localStorage.getItem('studio-theme');
-      if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-        document.documentElement.setAttribute('data-theme', 'dark');
-      }
-    } catch(e) {}
-  })();
-</script>
 <link rel="stylesheet" href="/assets/style.css">
 <link rel="stylesheet" href="/studio-assets/studio.css">
 </head>`;
@@ -32,18 +22,12 @@ export function dashboardPage(): string {
   <header class="topbar">
     <h1 class="topbar-title">Studio — Problem Maker</h1>
     <div class="topbar-actions">
-      <button id="btn-theme" class="btn btn-sm" title="Toggle dark/light mode">🌙</button>
       <button id="btn-refresh" class="btn">Validate All</button>
       <button id="btn-export-all" class="btn">Export All (PDF)</button>
       <button id="btn-booklet" class="btn">Combine Into One Booklet</button>
       <button id="btn-export-zip" class="btn" title="Download every problem including assets as a ZIP file">📦 Export ZIP</button>
       <button id="btn-import-zip" class="btn" title="Import problems from a ZIP file">📥 Import ZIP</button>
       <button id="open-new" class="btn btn-primary">+ New Problem</button>
-      <!-- A form rather than a link: signing out changes state, and a GET that logs you out can
-           be triggered by any page that embeds the URL as an image. -->
-      <form method="post" action="/logout" class="topbar-logout">
-        <button type="submit" class="btn btn-sm" title="Sign out of Studio">Sign out</button>
-      </form>
     </div>
   </header>
 
@@ -194,8 +178,7 @@ export function editorPage(info: EditorPageInfo): string {
             <button type="button" class="switch-btn" id="btn-mode-source" title="Switch to source mode">💻 Source (YAML)</button>
           </div>
         </div>
-        <button id="btn-theme" class="btn btn-sm" title="Toggle dark/light mode">🌙</button>
-        <button id="btn-assets" class="btn">Manage Images</button>
+          <button id="btn-assets" class="btn">Manage Images</button>
         <a class="btn" target="_blank" rel="noopener" href="/preview/${encodeURIComponent(info.folder)}">Open Preview in New Tab</a>
         <button id="btn-pdf" class="btn">Export PDF</button>
         <a class="btn" href="/api/problems/${encodeURIComponent(info.folder)}/export-zip" title="Download this problem with its images as a ZIP file">📦 Export ZIP</a>

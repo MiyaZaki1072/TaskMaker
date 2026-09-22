@@ -492,6 +492,12 @@ export function createStudioApp(options: StudioAppOptions = {}): express.Express
     res.redirect(303, target);
   });
 
+  /**
+   * No longer linked from the topbar — the button was removed — but kept as the one way to end a
+   * session without clearing cookies by hand or rotating SESSION_SECRET (which signs out every
+   * device at once). SESSION_TTL_HOURS defaults to 720, so a session otherwise lasts 30 days.
+   * verify-security.ts posts here directly and asserts the cookie comes back with Max-Age=0.
+   */
   app.post('/logout', (_req, res) => {
     clearSession(res);
     res.redirect(303, '/login');

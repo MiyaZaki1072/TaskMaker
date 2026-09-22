@@ -609,27 +609,5 @@
     }
   });
 
-  // Theme toggle
-  const themeBtn = document.getElementById('btn-theme');
-  function updateThemeButton() {
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    if (themeBtn) {
-      themeBtn.textContent = isDark ? '☀️' : '🌙';
-      themeBtn.title = isDark ? 'Switch to light mode' : 'Switch to dark mode';
-    }
-  }
-  themeBtn?.addEventListener('click', () => {
-    const current = document.documentElement.getAttribute('data-theme');
-    const next = current === 'dark' ? 'light' : 'dark';
-    if (next === 'dark') {
-      document.documentElement.setAttribute('data-theme', 'dark');
-    } else {
-      document.documentElement.removeAttribute('data-theme');
-    }
-    localStorage.setItem('studio-theme', next);
-    updateThemeButton();
-  });
-  updateThemeButton();
-
   refreshList();
 })();

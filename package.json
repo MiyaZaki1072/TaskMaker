@@ -1,0 +1,61 @@
+{
+  "name": "sovn-problem-kit",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Problem-maker system (สอวน.) — write YAML, see a live preview, export to PDF",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "new": "tsx scripts/new-problem.ts",
+    "db:init": "tsx scripts/db-init.ts",
+    "studio": "tsx scripts/studio.ts",
+    "preview": "tsx scripts/preview-server.ts",
+    "pdf": "tsx scripts/export-pdf.ts",
+    "pdf:all": "tsx scripts/export-all.ts",
+    "pdf:booklet": "tsx scripts/export-booklet.ts",
+    "validate": "tsx scripts/validate.ts",
+    "verify:zip": "tsx scripts/verify-zip.ts",
+    "verify:security": "tsx scripts/verify-security.ts",
+    "test:text": "tsx scripts/text-regression.ts",
+    "test:assets": "tsx scripts/asset-regression.ts",
+    "typecheck": "tsc --noEmit && npm run verify:client",
+    "verify:client": "node --check src/studio-public/editor.js && node --check src/studio-public/dashboard.js",
+    "start": "node build/server.js",
+    "serve": "tsx scripts/serve.ts",
+    "build:server": "esbuild scripts/serve.ts --bundle --platform=node --target=node18 --format=esm --packages=external --outfile=build/server.js"
+  },
+  "dependencies": {
+    "adm-zip": "^0.6.1",
+    "chokidar": "^3.6.0",
+    "commander": "^12.1.0",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
+    "handlebars": "^4.7.8",
+    "highlight.js": "^11.12.0",
+    "katex": "^0.16.11",
+    "multer": "^2.3.0",
+    "open": "^10.1.0",
+    "pdf-lib": "^1.17.1",
+    "pg": "^8.23.0",
+    "puppeteer": "^25.10.0",
+    "puppeteer-core": "^25.10.0",
+    "ws": "^8.18.0",
+    "yaml": "^2.6.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/adm-zip": "^0.5.8",
+    "@types/express": "^5.0.6",
+    "@types/katex": "^0.16.7",
+    "@types/multer": "^2.2.0",
+    "@types/node": "^22.10.2",
+    "@types/pg": "^8.23.1",
+    "@types/ws": "^8.5.13",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

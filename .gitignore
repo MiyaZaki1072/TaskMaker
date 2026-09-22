@@ -1,0 +1,24 @@
+node_modules/
+dist/
+.cache/
+
+# Database credentials. .env.test holds a throwaway Neon branch URL used by `npm run test:assets`;
+# note a Neon branch inherits its parent's role password, so this file is as sensitive as production.
+.env
+.env.*
+!.env.example
+
+*.log
+.DS_Store
+Thumbs.db
+.vercel
+master-prompt-sovn-problem-system.md
+.claude
+
+# Bundled server for the self-hosted image, produced by `npm run build:server`
+build/
+
+# Problem content is not part of this repository — the tool ships without problems.
+# Your own problems live here locally and stay out of git.
+problems/*
+!problems/.gitkeep

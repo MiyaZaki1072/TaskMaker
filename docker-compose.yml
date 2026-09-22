@@ -1,0 +1,97 @@
+# Problem Studio on ZimaOS.
+#
+#   cp .env.example .env     # then edit it — STUDIO_PASSWORD and POSTGRES_PASSWORD are required
+#   docker compose up -d --build
+#
+# Two containers: the studio itself, and the Postgres that replaces Neon. They talk over a private
+# Docker network, so Postgres is never published to the LAN — the only way to reach the data is
+# through the studio (or `docker compose exec db psql`).
+name: rywcc-problem-studio
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-studio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-studio}
+    volumes:
+      # The one piece of durable state in this stack. Everything a user writes — problems, images,
+      # the login session secret — lives here. Back this up, not the container.
+      - studio-db:/var/lib/postgresql/data
+    # No `ports:` on purpose. Postgres is reachable only from the studio container on the private
+    # network below; publishing 5432 to the LAN would be an open door to the whole dataset.
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-studio} -d ${POSTGRES_DB:-studio}']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks: [studio]
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: rywcc-problem-studio:local
+    restart: unless-stopped
+    depends_on:
+      db:
+        # Waits for Postgres to actually accept connections, not merely for its container to exist.
+        # Without this the studio's first boot races the database's own initialisation.
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-studio}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-studio}
+      # The password for the studio login page. Required — the app refuses to serve without it.
+      STUDIO_PASSWORD: ${STUDIO_PASSWORD:?set STUDIO_PASSWORD in .env}
+      # Optional. Leave unset and the app generates a session secret on first boot and keeps it in
+      # Postgres, so logins survive restarts without you having to manage another secret.
+      SESSION_SECRET: ${SESSION_SECRET:-}
+      # Sessions are marked Secure by default, which is correct behind the Cloudflare tunnel
+      # (browsers see HTTPS). Set to 0 only if you reach the studio over plain http:// on the LAN,
+      # where a Secure cookie would be dropped and login would appear to silently fail.
+      SECURE_COOKIES: ${SECURE_COOKIES:-1}
+      # One proxy hop: cloudflared. Lets the login throttle see the real client IP rather than
+      # counting every visitor on the planet as the same one.
+      TRUST_PROXY: ${TRUST_PROXY:-1}
+      # The public origin, used to reject cross-site form posts. Set it to your real URL.
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-}
+    # Chromium needs more than Docker's default 64 MB of shared memory to print an image-heavy
+    # problem. --disable-dev-shm-usage (src/pdf-export.ts) covers the rest.
+    shm_size: 512mb
+    ports:
+      # Published so cloudflared — whether it runs as a ZimaOS app, another container, or on the
+      # host — can reach it, and so you can open the studio directly on the LAN.
+      # Set STUDIO_BIND=127.0.0.1 in .env to restrict it to the box itself.
+      - '${STUDIO_BIND:-0.0.0.0}:${STUDIO_PORT:-4322}:4322'
+    networks: [studio]
+
+    # ZimaOS / CasaOS app-store metadata. Ignored by plain `docker compose`; read by ZimaOS to
+    # render the app tile, so the studio gets a proper icon and a working "open" button.
+    x-casaos:
+      architectures:
+        - amd64
+        - arm64
+      main: app
+      author: RYWCC
+      category: Developer
+      description:
+        en_us: >-
+          Write olympiad (สอวน.) problems in YAML, preview them live, and export print-ready
+          PDFs and booklets. Self-hosted, with its own Postgres.
+      tagline:
+        en_us: Problem authoring studio with live preview and PDF export
+      title:
+        en_us: Problem Studio
+      port_map: '4322'
+      scheme: http
+      index: /
+      webui_port: 4322
+
+volumes:
+  studio-db:
+
+networks:
+  studio:
+    driver: bridge

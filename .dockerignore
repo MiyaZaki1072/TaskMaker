@@ -1,0 +1,21 @@
+# Keep local state and secrets out of the image and out of the build context.
+# Docker does not read .gitignore, so this list is deliberately separate from it.
+node_modules
+build
+dist
+.cache
+.git
+.github
+.claude
+
+# Credentials. The container gets its configuration from docker-compose.yml's environment,
+# never from a baked-in .env — an image layer would keep the password forever, even if the
+# file were deleted in a later layer.
+.env
+.env.*
+!.env.example
+
+*.log
+.DS_Store
+Thumbs.db
+master-prompt-sovn-problem-system.md

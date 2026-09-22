@@ -1,0 +1,539 @@
+/* ============================================================
+   Problem page styling (used both on screen and in the PDF)
+   Editing this one file = changing the look of the whole system
+   ============================================================ */
+
+/* ---------- TH Sarabun New font (loaded locally, no internet needed) ---------- */
+@font-face {
+  font-family: 'TH Sarabun New';
+  src: url('/assets/fonts/THSarabunNew.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: 'TH Sarabun New';
+  src: url('/assets/fonts/THSarabunNew-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: 'TH Sarabun New';
+  src: url('/assets/fonts/THSarabunNew-Italic.ttf') format('truetype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: block;
+}
+@font-face {
+  font-family: 'TH Sarabun New';
+  src: url('/assets/fonts/THSarabunNew-BoldItalic.ttf') format('truetype');
+  font-weight: 700;
+  font-style: italic;
+  font-display: block;
+}
+
+/* ---------- Monospace font (used for input/output data and code) ----------
+   Also embedded locally, so sample data lines up in columns identically on every machine */
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/assets/fonts/JetBrainsMono-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/assets/fonts/JetBrainsMono-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
+}
+
+:root {
+  --ink: #14181f;
+  --ink-soft: #4a5260;
+  --line: #c9d0da;
+  --line-soft: #e3e8ef;
+  --accent: #1c3f94;
+  --surface: #f4f6fa;
+  --code-bg: #f6f8fa;
+  --page-width: 210mm;
+  --page-pad-x: 18mm;
+  --page-pad-y: 16mm;
+  --mono: 'JetBrains Mono', 'Consolas', 'Courier New', monospace;
+  --base-size: 19px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: var(--base-size);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--surface);
+  color: var(--ink);
+  /* TH Sarabun New must always come first; the rest are fallbacks if the font fails to load */
+  font-family: 'TH Sarabun New', 'Sarabun', 'Tahoma', sans-serif;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- Page ---------- */
+.paper {
+  width: var(--page-width);
+  min-height: 297mm;
+  margin: 24px auto;
+  padding: var(--page-pad-y) var(--page-pad-x);
+  background: #fff;
+  box-shadow: 0 2px 18px rgb(20 24 31 / 12%);
+}
+
+/* ---------- Page header ---------- */
+.task-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--accent);
+  margin-bottom: 18px;
+}
+
+.task-logo {
+  width: 68px;
+  height: auto;
+  flex: none;
+  object-fit: contain;
+}
+
+.task-head-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.task-code {
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  color: var(--ink-soft);
+  font-family: var(--mono);
+}
+
+.task-name {
+  margin: 2px 0 0;
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--accent);
+}
+
+.task-author {
+  margin-top: 4px;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+
+.task-limits {
+  flex: none;
+  font-size: 0.95rem;
+  color: var(--ink-soft);
+  border-left: 1px solid var(--line);
+  padding-left: 12px;
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 0 8px;
+  align-items: baseline;
+}
+
+.limit-label {
+  text-align: right;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+/* ---------- Headings and content ---------- */
+.section {
+  margin: 0 0 16px;
+}
+
+.section h2 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin: 18px 0 6px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--line-soft);
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+.section h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 14px 0 5px;
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+.section h4 {
+  font-size: 1.02rem;
+  font-weight: 700;
+  margin: 10px 0 3px;
+  color: var(--ink-soft);
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+p {
+  margin: 0 0 8px;
+  text-align: left;
+  hyphens: none;
+  overflow-wrap: break-word;
+}
+
+.section-story p:first-child {
+  margin-top: 0;
+}
+
+ul.spec-list,
+ul.rich-list,
+ol.rich-list {
+  margin: 0 0 8px;
+  padding-left: 1.5em;
+}
+
+ul.spec-list > li,
+ul.rich-list > li,
+ol.rich-list > li {
+  margin-bottom: 3px;
+}
+
+/* ---------- Tables ---------- */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 6px 0 10px;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+th,
+td {
+  border: 1px solid var(--line);
+  padding: 4px 9px 6px;
+  vertical-align: top;
+}
+
+thead th {
+  background: #eef1f7;
+  font-weight: 700;
+  text-align: center;
+}
+
+tr {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.subtask-table .col-no {
+  width: 5.5em;
+  text-align: center;
+}
+
+.subtask-table .col-score {
+  width: 5.5em;
+  text-align: center;
+}
+
+.subtask-table tfoot td {
+  font-weight: 700;
+  background: #f7f9fc;
+}
+
+.limit-table {
+  width: auto;
+  min-width: 60%;
+}
+
+.limit-table th {
+  text-align: left;
+  background: #eef1f7;
+  width: 16em;
+}
+
+/* ---------- Examples ---------- */
+.example {
+  margin-bottom: 14px;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.example-table th {
+  width: 50%;
+}
+
+pre.io {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.example-figure {
+  margin: 8px 0;
+  text-align: center;
+}
+
+.example-figure img {
+  max-width: 100%;
+  height: auto;
+}
+
+.story-figure {
+  margin: 14px auto;
+  text-align: center;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.story-figure img {
+  max-width: 100%;
+  max-height: 380px;
+  height: auto;
+  border-radius: 4px;
+}
+
+.story-figure figcaption {
+  margin-top: 6px;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+.align-center {
+  text-align: center;
+}
+
+.align-left {
+  text-align: left;
+}
+
+.align-right {
+  text-align: right;
+}
+
+.align-center .story-figure {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.align-left .story-figure {
+  margin-left: 0;
+  margin-right: auto;
+}
+
+.align-right .story-figure {
+  margin-left: auto;
+  margin-right: 0;
+}
+
+img.inline-img {
+  max-height: 1.8em;
+  vertical-align: middle;
+  display: inline-block;
+  margin: 0 2px;
+}
+
+.example-explanation {
+  margin-top: 4px;
+}
+
+pre.code-block {
+  background: var(--code-bg);
+  border: 1px solid var(--line-soft);
+  border-radius: 4px;
+  padding: 8px 10px;
+  overflow-x: auto;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+/* ---------- Math formulas ---------- */
+.katex {
+  font-size: 1.04em;
+}
+
+.math-error {
+  color: #b3261e;
+  background: #fdecea;
+  padding: 0 3px;
+  border-radius: 3px;
+}
+
+/* ---------- Warning box (shown on screen only) ---------- */
+.warning-box {
+  max-width: var(--page-width);
+  margin: 16px auto -8px;
+  padding: 10px 16px;
+  background: #fff8e1;
+  border: 1px solid #f0c36d;
+  border-radius: 6px;
+  color: #6b4e00;
+  font-size: 0.95rem;
+}
+
+.warning-box ul {
+  margin: 4px 0 0;
+  padding-left: 1.4em;
+}
+
+/* ---------- Error page ---------- */
+.error-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.error-card {
+  background: #fff;
+  max-width: 720px;
+  width: 100%;
+  padding: 28px 32px 24px;
+  border-radius: 10px;
+  border-top: 6px solid #b3261e;
+  box-shadow: 0 2px 18px rgb(20 24 31 / 12%);
+}
+
+.error-emoji {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #fdecea;
+  color: #b3261e;
+  font-size: 1.6rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.error-card h1 {
+  font-size: 1.6rem;
+  margin: 12px 0 6px;
+  color: #b3261e;
+}
+
+.error-file {
+  margin: 0 0 10px;
+  color: var(--ink-soft);
+}
+
+.error-file code {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  background: var(--code-bg);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.error-details {
+  margin: 0 0 12px;
+  padding-left: 1.3em;
+}
+
+.error-details li {
+  margin-bottom: 5px;
+}
+
+.error-hint {
+  background: #eef7ee;
+  border-left: 4px solid #3a8a3d;
+  padding: 8px 12px;
+  margin: 0 0 12px;
+}
+
+.error-foot {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
+/* ============================================================
+   When printing / exporting to PDF
+   Page margins and page numbers are set from src/pdf-export.ts (Puppeteer)
+   ============================================================ */
+@media print {
+  html {
+    /* TH Sarabun New renders smaller than Latin fonts at the same point size, so bump it to 16pt */
+    font-size: 16pt;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  .paper {
+    width: auto;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+  }
+
+  .warning-box {
+    display: none !important;
+  }
+
+  .task-head {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  .section,
+  .example,
+  table,
+  tr,
+  figure,
+  pre.code-block {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Prevent a paragraph from being cut down to a single orphan/widow line at a page break */
+  p,
+  li {
+    orphans: 3;
+    widows: 3;
+  }
+
+  .section-story {
+    /* The story can be long, so allow it to break across pages normally — just not mid-paragraph */
+    page-break-inside: auto;
+    break-inside: auto;
+  }
+
+  .section-story p {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+}
+
+@page {
+  size: A4;
+}

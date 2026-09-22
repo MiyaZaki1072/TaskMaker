@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Example_Mirror_Range</title>
+<link rel="stylesheet" href="/vendor/katex/katex.min.css">
+<link rel="stylesheet" href="/vendor/hljs/github.min.css">
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+
+<article class="paper">
+
+  <header class="task-head">
+    
+    <div class="task-head-text">
+      <div class="task-code">Example_Mirror_Range</div>
+      <h1 class="task-name">ช่วงสมมาตรที่ยาวที่สุด</h1>
+      <div class="task-author">ผู้ออกโจทย์: Example Author</div>
+    </div>
+    <div class="task-limits">
+      <span class="limit-label">เวลา</span><span>1 second</span>
+      <span class="limit-label">หน่วยความจำ</span><span>256 MiB</span>
+    </div>
+  </header>
+
+  <section class="section section-story">
+    <p>นักสำรวจคนหนึ่งบันทึกระดับความสูงของพื้นที่แห่งหนึ่งเอาไว้ทุก ๆ ระยะเท่า ๆ กัน รวมทั้งสิ้น <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.109em;">N</span></span></span></span> ค่า</p>
+<p>เขาสนใจรูปแบบที่เรียกว่า &quot;ช่วงสมมาตร&quot; ซึ่งหมายถึงช่วงที่อ่านจากซ้ายไปขวาแล้วได้ค่าเดิมกับการอ่านจากขวาไปซ้าย</p>
+<p>จงเขียนโปรแกรมหาช่วงสมมาตรที่ยาวที่สุด หากมีหลายช่วงที่ยาวเท่ากัน ให้ตอบช่วงที่อยู่ทางซ้ายมือที่สุด</p>
+  </section>
+
+  <section class="section">
+    <h2>ข้อมูลนำเข้า</h2>
+    <ul class="spec-list">
+      <li>บรรทัดที่ 1 รับจำนวนเต็ม <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.109em;">N</span></span></span></span> แสดงถึงจำนวนค่าที่บันทึกไว้</li><li>บรรทัดที่ 2 รับจำนวนเต็ม <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.109em;">N</span></span></span></span> จำนวน ได้แก่ <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord mathnormal">a</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">1</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal">a</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="minner">…</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal">a</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight" style="margin-right:0.109em;">N</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> แทนค่าที่บันทึกในตำแหน่งที่ <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6595em;"></span><span class="mord mathnormal">i</span></span></span></span></li>
+    </ul>
+  </section>
+
+  <section class="section">
+    <h2>ข้อมูลส่งออก</h2>
+    <ul class="spec-list">
+      <li>แสดงช่วงสมมาตรที่ยาวที่สุด</li>
+    </ul>
+  </section>
+
+  <section class="section">
+    <h2>เงื่อนไข</h2>
+    <ul class="spec-list">
+      <li><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7804em;vertical-align:-0.136em;"></span><span class="mord">1</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≤</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8193em;vertical-align:-0.136em;"></span><span class="mord mathnormal" style="margin-right:0.109em;">N</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≤</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8389em;vertical-align:-0.1944em;"></span><span class="mord">1</span><span class="mord"><span class="mpunct">,</span></span><span class="mord">000</span></span></span></span></li><li><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7804em;vertical-align:-0.136em;"></span><span class="mord">1</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≤</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.786em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">a</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≤</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8389em;vertical-align:-0.1944em;"></span><span class="mord">1</span><span class="mord"><span class="mpunct">,</span></span><span class="mord">000</span><span class="mord"><span class="mpunct">,</span></span><span class="mord">000</span></span></span></span> สำหรับทุก <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6595em;"></span><span class="mord mathnormal">i</span></span></span></span></li>
+    </ul>
+  </section>
+
+  <section class="section section-subtasks">
+    <h2>ปัญหาย่อย</h2>
+    <table class="subtask-table">
+      <thead>
+        <tr>
+          <th class="col-no">ข้อย่อยที่</th>
+          <th class="col-score">คะแนน</th>
+          <th class="col-cond">เงื่อนไขเพิ่มเติม</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="col-no">1</td>
+          <td class="col-score">2</td>
+          <td class="col-cond"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.109em;">N</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">1</span></span></span></span></td>
+        </tr>
+        <tr>
+          <td class="col-no">2</td>
+          <td class="col-score">8</td>
+          <td class="col-cond"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.5806em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal">a</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> เท่ากันทุกตำแหน่ง</td>
+        </tr>
+        <tr>
+          <td class="col-no">3</td>
+          <td class="col-score">90</td>
+          <td class="col-cond">ไม่มีเงื่อนไขเพิ่มเติม</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td class="col-no"></td>
+          <td class="col-score">100</td>
+          <td class="col-cond">คะแนนรวม</td>
+        </tr>
+      </tfoot>
+    </table>
+  </section>
+
+  <section class="section section-examples">
+    <h2>ตัวอย่าง</h2>
+    <div class="example">
+      <h3>ตัวอย่างที่ 1</h3>
+      <table class="example-table">
+        <thead>
+          <tr>
+            <th>ข้อมูลนำเข้า</th>
+            <th>ข้อมูลส่งออก</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><pre class="io">4
+1 3 2 3</pre></td>
+            <td><pre class="io">1</pre></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="example">
+      <h3>ตัวอย่างที่ 2</h3>
+      <table class="example-table">
+        <thead>
+          <tr>
+            <th>ข้อมูลนำเข้า</th>
+            <th>ข้อมูลส่งออก</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><pre class="io">7
+7 4 5 6 5 4 1</pre></td>
+            <td><pre class="io">4 5 6 5 4</pre></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="section section-limits">
+    <h2>ข้อจำกัด</h2>
+    <table class="limit-table">
+      <tbody>
+        <tr><th>เวลาที่ใช้ในการทำงาน</th><td>1 second</td></tr>
+        <tr><th>หน่วยความจำที่ใช้ได้</th><td>256 MiB</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+</article>
+
+<script>
+// บอกตัว export PDF ว่า "ฟอนต์และรูปโหลดครบแล้ว" เพื่อไม่ต้องเดาเวลารอ
+(async () => {
+  try { await document.fonts.ready; } catch (err) { /* เบราว์เซอร์เก่าไม่มี document.fonts */ }
+  const pending = Array.from(document.images)
+    .filter((img) => !img.complete)
+    .map((img) => new Promise((resolve) => {
+      img.addEventListener('load', resolve, { once: true });
+      img.addEventListener('error', resolve, { once: true });
+    }));
+  await Promise.all(pending);
+  document.documentElement.setAttribute('data-render-ready', '1');
+})();
+</script>
+
+</body>
+</html>

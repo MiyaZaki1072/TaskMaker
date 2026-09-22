@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Example_Path_Count</title>
+<link rel="stylesheet" href="/vendor/katex/katex.min.css">
+<link rel="stylesheet" href="/vendor/hljs/github.min.css">
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+
+<article class="paper">
+
+  <header class="task-head">
+    
+    <div class="task-head-text">
+      <div class="task-code">Example_Path_Count</div>
+      <h1 class="task-name">นับจำนวนขอบบนเส้นทาง</h1>
+      <div class="task-author">ผู้ออกโจทย์: Example Author</div>
+    </div>
+    <div class="task-limits">
+      <span class="limit-label">เวลา</span><span>1 second</span>
+      <span class="limit-label">หน่วยความจำ</span><span>64 MiB</span>
+    </div>
+  </header>
+
+  <section class="section section-story">
+    <p>หุ่นยนต์สำรวจตัวหนึ่งเดินอยู่บนผังสามเหลี่ยมที่มีจุดเชื่อมต่อกันดังรูป โดยจุดหมายเลข <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">1</span></span></span></span> คือจุดเริ่มต้น</p>
+<figure class="story-figure"><img src="/problem-assets/example-grid.png" alt="assets/example-grid.png"></figure>
+<p>ในแต่ละวันหุ่นยนต์จะออกจากจุดเริ่มต้นไปยังจุดหมายเลข <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0785em;">X</span></span></span></span> แล้วเดินกลับมายังจุดเริ่มต้นอีกครั้ง โดยเลือกเส้นทางที่ข้ามขอบน้อยที่สุดเสมอ</p>
+<p>จงหาว่าในแต่ละวันหุ่นยนต์ต้องข้ามขอบทั้งหมดกี่ครั้ง (หากระบุ <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6833em;"></span><span class="mord mathnormal" style="margin-right:0.0785em;">X</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">1</span></span></span></span> หมายถึงหุ่นยนต์อยู่ที่จุดเริ่มต้นอยู่แล้ว จึงไม่ต้องข้ามขอบใด ๆ)</p>
+<p>ตัวอย่างการเดินทางไปยังจุดหมายเลข <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">7</span></span></span></span> ซึ่งต้องข้ามขอบทั้งหมด <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">6</span></span></span></span> ครั้ง แสดงได้ดังรูป</p>
+<figure class="story-figure"><img src="/problem-assets/example-path-forward.png" alt="assets/example-path-forward.png"></figure>
+<p>ขาไปเดินทางจาก <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">1</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">→</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">2</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">→</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">4</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">→</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">7</span></span></span></span> รวม <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">3</span></span></span></span> ครั้ง</p>
+<figure class="story-figure"><img src="/problem-assets/example-path-return.png" alt="assets/example-path-return.png"></figure>
+<p>ขากลับเดินทางจาก <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">7</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">→</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">4</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">→</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">2</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">→</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">1</span></span></span></span> รวม <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">3</span></span></span></span> ครั้ง</p>
+  </section>
+
+  <section class="section">
+    <h2>ข้อมูลนำเข้า</h2>
+    <ul class="spec-list">
+      <li>บรรทัดที่ <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">1</span></span></span></span> รับจำนวนเต็ม <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8778em;vertical-align:-0.1944em;"></span><span class="mord mathnormal">Q</span></span></span></span> แสดงถึงจำนวนวันที่หุ่นยนต์ออกเดินทาง</li><li>บรรทัดที่ <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">2</span></span></span></span> รับจำนวนเต็ม <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8778em;vertical-align:-0.1944em;"></span><span class="mord mathnormal">Q</span></span></span></span> จำนวน ได้แก่ <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.9694em;vertical-align:-0.2861em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0785em;">X</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:-0.0785em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">1</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0785em;">X</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3011em;"><span style="top:-2.55em;margin-left:-0.0785em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="minner">…</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mpunct">,</span><span class="mspace" style="margin-right:0.1667em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0785em;">X</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3283em;"><span style="top:-2.55em;margin-left:-0.0785em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">Q</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.2861em;"><span></span></span></span></span></span></span></span></span></span> แสดงถึงจุดหมายในแต่ละวัน</li>
+    </ul>
+  </section>
+
+  <section class="section">
+    <h2>ข้อมูลส่งออก</h2>
+    <ul class="spec-list">
+      <li>บรรทัดที่ <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7278em;vertical-align:-0.0833em;"></span><span class="mord">1</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span></span><span class="base"><span class="strut" style="height:0.8778em;vertical-align:-0.1944em;"></span><span class="mord mathnormal">Q</span></span></span></span> แสดงจำนวนขอบที่ต้องข้ามเพื่อไปยังจุดหมายเลข <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0785em;">X</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:-0.0785em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> แล้วกลับมา</li>
+    </ul>
+  </section>
+
+  <section class="section">
+    <h2>เงื่อนไข</h2>
+    <ul class="spec-list">
+      <li><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7804em;vertical-align:-0.136em;"></span><span class="mord">1</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≤</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8778em;vertical-align:-0.1944em;"></span><span class="mord mathnormal">Q</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≤</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8389em;vertical-align:-0.1944em;"></span><span class="mord">100</span><span class="mord"><span class="mpunct">,</span></span><span class="mord">000</span></span></span></span></li><li><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.7804em;vertical-align:-0.136em;"></span><span class="mord">1</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≤</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0785em;">X</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:-0.0785em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≤</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8389em;vertical-align:-0.1944em;"></span><span class="mord">100</span><span class="mord"><span class="mpunct">,</span></span><span class="mord">000</span><span class="mord"><span class="mpunct">,</span></span><span class="mord">000</span></span></span></span> สำหรับทุก <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.6595em;"></span><span class="mord mathnormal">i</span></span></span></span></li>
+    </ul>
+  </section>
+
+  <section class="section section-subtasks">
+    <h2>ปัญหาย่อย</h2>
+    <table class="subtask-table">
+      <thead>
+        <tr>
+          <th class="col-no">ข้อย่อยที่</th>
+          <th class="col-score">คะแนน</th>
+          <th class="col-cond">เงื่อนไขเพิ่มเติม</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="col-no">1</td>
+          <td class="col-score">60</td>
+          <td class="col-cond"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8778em;vertical-align:-0.1944em;"></span><span class="mord mathnormal">Q</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≤</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.8389em;vertical-align:-0.1944em;"></span><span class="mord">1</span><span class="mord"><span class="mpunct">,</span></span><span class="mord">000</span></span></span></span> และ <span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0785em;">X</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:-0.0785em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">≤</span><span class="mspace" style="margin-right:0.2778em;"></span></span><span class="base"><span class="strut" style="height:0.6444em;"></span><span class="mord">10</span></span></span></span> เสมอ</td>
+        </tr>
+        <tr>
+          <td class="col-no">2</td>
+          <td class="col-score">30</td>
+          <td class="col-cond"><span class="katex"><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height:0.8333em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0785em;">X</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3117em;"><span style="top:-2.55em;margin-left:-0.0785em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span> เป็นจำนวนกำลังสองสมบูรณ์เสมอ</td>
+        </tr>
+        <tr>
+          <td class="col-no">3</td>
+          <td class="col-score">10</td>
+          <td class="col-cond">ไม่มีเงื่อนไขเพิ่มเติม</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td class="col-no"></td>
+          <td class="col-score">100</td>
+          <td class="col-cond">คะแนนรวม</td>
+        </tr>
+      </tfoot>
+    </table>
+  </section>
+
+  <section class="section section-examples">
+    <h2>ตัวอย่าง</h2>
+    <div class="example">
+      <h3>ตัวอย่างที่ 1</h3>
+      <table class="example-table">
+        <thead>
+          <tr>
+            <th>ข้อมูลนำเข้า</th>
+            <th>ข้อมูลส่งออก</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><pre class="io">3
+7 4 1</pre></td>
+            <td><pre class="io">6
+4
+0</pre></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="example-explanation">
+        <h4>คำอธิบาย</h4>
+        <p>การไปยังจุดหมายเลข 7 แล้วกลับ ทำได้โดย 1-&gt;2-&gt;4-&gt;7-&gt;4-&gt;2-&gt;1 จึงตอบ 6 ครั้ง</p>
+<p>การไปยังจุดหมายเลข 4 แล้วกลับ ทำได้โดย 1-&gt;2-&gt;4-&gt;2-&gt;1 จึงตอบ 4 ครั้ง</p>
+<p>การระบุจุดหมายเลข 1 ไม่ต้องข้ามขอบใด จึงตอบ 0 ครั้ง</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section-limits">
+    <h2>ข้อจำกัด</h2>
+    <table class="limit-table">
+      <tbody>
+        <tr><th>เวลาที่ใช้ในการทำงาน</th><td>1 second</td></tr>
+        <tr><th>หน่วยความจำที่ใช้ได้</th><td>64 MiB</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+</article>
+
+<script>
+// บอกตัว export PDF ว่า "ฟอนต์และรูปโหลดครบแล้ว" เพื่อไม่ต้องเดาเวลารอ
+(async () => {
+  try { await document.fonts.ready; } catch (err) { /* เบราว์เซอร์เก่าไม่มี document.fonts */ }
+  const pending = Array.from(document.images)
+    .filter((img) => !img.complete)
+    .map((img) => new Promise((resolve) => {
+      img.addEventListener('load', resolve, { once: true });
+      img.addEventListener('error', resolve, { once: true });
+    }));
+  await Promise.all(pending);
+  document.documentElement.setAttribute('data-render-ready', '1');
+})();
+</script>
+
+</body>
+</html>

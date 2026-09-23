@@ -867,7 +867,9 @@ export function createStudioApp(options: StudioAppOptions = {}): express.Express
         hint: 'Click "Export PDF" first, then download it',
       });
     }
-    res.download(file, `${problem.task.code}.pdf`);
+    // Relative to `root` for the same reason as the /problem-assets route: DIST_DIR sits under
+    // /app/.runtime in the container, and `send` 404s any absolute path through a dot-directory.
+    res.download(path.basename(file), `${problem.task.code}.pdf`, { root: DIST_DIR });
   }));
 
   api.post('/export-all', heavyLimiter, handle(async (_req, res) => {
@@ -918,7 +920,7 @@ export function createStudioApp(options: StudioAppOptions = {}): express.Express
     if (!fs.existsSync(file)) {
       throw new ProblemError('No combined booklet file has been generated yet', { hint: 'Click "Combine into one booklet" first, then download it' });
     }
-    res.download(file, 'booklet.pdf');
+    res.download('booklet.pdf', 'booklet.pdf', { root: DIST_DIR });
   }));
 
   // ---------- ZIP export / import ----------

@@ -9,7 +9,7 @@ import express from 'express';
 import { PDFDocument } from 'pdf-lib';
 import { type Browser } from 'puppeteer';
 import { ProblemError } from './errors.js';
-import { exportProblemPdf, type ExportResult } from './pdf-export.js';
+import { exportProblemPdf, mapConcurrent, PDF_CONCURRENCY, waitForRenderReady, type ExportResult } from './pdf-export.js';
 import { DIST_DIR, ROOT } from './render.js';
 import { escapeHtml } from './text.js';
 
@@ -148,10 +148,8 @@ async function renderCover(browser: Browser, html: string): Promise<Uint8Array> 
   const server = await startTocServer(() => html);
   const page = await browser.newPage();
   try {
-    await page.goto(server.url, { waitUntil: 'networkidle0' });
-    await page.waitForFunction(() => document.documentElement.dataset.renderReady === '1', {
-      timeout: 30_000,
-    });
+    await page.goto(server.url, { waitUntil: 'load' });
+    await waitForRenderReady(page);
     return await page.pdf({
       format: 'A4',
       printBackground: true,
@@ -167,10 +165,8 @@ async function renderToc(browser: Browser, html: string): Promise<Uint8Array> {
   const server = await startTocServer(() => html);
   const page = await browser.newPage();
   try {
-    await page.goto(server.url, { waitUntil: 'networkidle0' });
-    await page.waitForFunction(() => document.documentElement.dataset.renderReady === '1', {
-      timeout: 30_000,
-    });
+    await page.goto(server.url, { waitUntil: 'load' });
+    await waitForRenderReady(page);
     return await page.pdf({
       format: 'A4',
       printBackground: true,
@@ -208,24 +204,18 @@ export async function buildBooklet(
   }
 
   onProgress(`Generating PDFs for ${dirs.length} problems ...`);
-  const parts: { result: ExportResult; pageCount: number }[] = [];
+  // The cover depends on nothing else, so it renders alongside the problems rather than after them.
+  const [parts, coverBytes] = await Promise.all([
+    mapConcurrent(dirs, PDF_CONCURRENCY, async (dir): Promise<{ result: ExportResult; pageCount: number }> => {
+      const result = await exportProblemPdf(dir, browser);
+      const pageCount = (await PDFDocument.load(result.bytes)).getPageCount();
+      onProgress(`- ${result.code} (${pageCount} pages)`);
+      return { result, pageCount };
+    }),
+    options?.contestName ? renderCover(browser, coverHtml(options)) : Promise.resolve(null),
+  ]);
 
-  for (const dir of dirs) {
-    const result = await exportProblemPdf(dir, browser);
-    const doc = await PDFDocument.load(fs.readFileSync(result.file));
-    parts.push({ result, pageCount: doc.getPageCount() });
-    onProgress(`- ${result.code} (${doc.getPageCount()} pages)`);
-  }
-  
-  let coverPageCount = 0;
-  let coverBytes: Uint8Array | null = null;
-  
-  if (options?.contestName) {
-    onProgress('Building the cover page ...');
-    coverBytes = await renderCover(browser, coverHtml(options));
-    const coverDoc = await PDFDocument.load(coverBytes);
-    coverPageCount = coverDoc.getPageCount();
-  }
+  const coverPageCount = coverBytes ? (await PDFDocument.load(coverBytes)).getPageCount() : 0;
 
   // The table-of-contents page count affects its own page numbers, so loop until the number settles
   onProgress('Building the table of contents ...');
@@ -260,7 +250,7 @@ export async function buildBooklet(
   for (const page of tocPages) booklet.addPage(page);
 
   for (const { result } of parts) {
-    const doc = await PDFDocument.load(fs.readFileSync(result.file));
+    const doc = await PDFDocument.load(result.bytes);
     const pages = await booklet.copyPages(doc, doc.getPageIndices());
     for (const page of pages) booklet.addPage(page);
   }

@@ -12,13 +12,58 @@ import path from 'node:path';
 // Type-only import: the full puppeteer package must NOT be loaded at module scope. It ships its
 // own Chromium and is only needed for local PDF export; the container uses puppeteer-core against
 // the system Chromium instead. Both are imported lazily below.
-import type { Browser } from 'puppeteer';
+import type { Browser, Page } from 'puppeteer';
 import { ProblemError } from './errors.js';
 import { DIST_DIR, loadProblem } from './render.js';
 import { startServer } from './server.js';
 
 /** Maximum time to wait for Chromium (milliseconds) — allows for a slow machine or large images */
-const RENDER_TIMEOUT = 30_000;
+export const RENDER_TIMEOUT = 30_000;
+
+/**
+ * How many problems render at once for Export All and the booklet. Chromium gives each page its
+ * own renderer process, so a few in parallel overlap each other's waiting (loading, font decoding,
+ * PDF encoding) without asking much of a small home server.
+ */
+export const PDF_CONCURRENCY = 3;
+
+/** Runs fn over items, at most `limit` at a time, and returns the results in input order */
+export async function mapConcurrent<T, R>(
+  items: readonly T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  const worker = async (): Promise<void> => {
+    while (next < items.length) {
+      const index = next;
+      next += 1;
+      results[index] = await fn(items[index] as T);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+}
+
+/**
+ * Waits until a page is safe to print: the page's own data-render-ready signal (fonts + images),
+ * then every font face actually in use finished loading.
+ *
+ * This replaces waiting for `networkidle0`, which always sat through an extra 500 ms of network
+ * silence per page. The second step is what that wait was really covering for: document.fonts.ready
+ * only tracks faces the browser has already started fetching, and it starts one only when layout
+ * needs it — so it can resolve before the Thai face has even been requested. Forcing layout first
+ * requests every face in use; a face still loading at print time comes out as empty boxes.
+ */
+export async function waitForRenderReady(page: Page, timeout = RENDER_TIMEOUT): Promise<void> {
+  await page.waitForFunction(() => document.documentElement.dataset.renderReady === '1', { timeout });
+  await page.evaluate(async () => {
+    void document.body.offsetHeight;
+    await document.fonts.ready;
+  });
+  await page.waitForFunction(() => document.fonts.status === 'loaded', { timeout });
+}
 
 function escapeForTemplate(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -100,6 +145,8 @@ export interface ExportResult {
   code: string;
   name: string;
   file: string;
+  /** The PDF itself — what the booklet merges, rather than re-reading `file`, which another problem with the same code may since have overwritten */
+  bytes: Uint8Array;
   warnings: string[];
 }
 
@@ -135,12 +182,10 @@ export async function exportProblemPdf(problemDir: string, browser: Browser): Pr
       }
     });
 
-    await page.goto(server.url, { waitUntil: 'networkidle0', timeout: RENDER_TIMEOUT });
+    await page.goto(server.url, { waitUntil: 'load', timeout: RENDER_TIMEOUT });
 
     // Wait for a real signal from the page (fonts + images fully loaded), not a guessed delay
-    await page.waitForFunction(() => document.documentElement.dataset.renderReady === '1', {
-      timeout: RENDER_TIMEOUT,
-    });
+    await waitForRenderReady(page);
 
     // Confirm math was actually rendered by KaTeX, not left as raw $...$ text
     await page.waitForFunction(
@@ -155,7 +200,7 @@ export async function exportProblemPdf(problemDir: string, browser: Browser): Pr
     fs.mkdirSync(DIST_DIR, { recursive: true });
     const outFile = path.join(DIST_DIR, `${problem.task.code}.pdf`);
 
-    await page.pdf({
+    const bytes = await page.pdf({
       path: outFile,
       format: 'A4',
       printBackground: true,
@@ -166,7 +211,7 @@ export async function exportProblemPdf(problemDir: string, browser: Browser): Pr
       margin: { top: '14mm', bottom: '16mm', left: '16mm', right: '16mm' },
     });
 
-    return { code: problem.task.code, name: problem.task.name, file: outFile, warnings: pageErrors };
+    return { code: problem.task.code, name: problem.task.name, file: outFile, bytes, warnings: pageErrors };
   } finally {
     await page.close().catch(() => undefined);
     await server.close();

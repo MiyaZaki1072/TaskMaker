@@ -19,7 +19,7 @@ import { WebSocketServer, type WebSocket } from 'ws';
 import { rateLimit } from 'express-rate-limit';
 import { buildBooklet } from './booklet.js';
 import { ProblemError } from './errors.js';
-import { exportProblemPdf, launchBrowser } from './pdf-export.js';
+import { exportProblemPdf, launchBrowser, mapConcurrent, PDF_CONCURRENCY } from './pdf-export.js';
 import {
   assetInfo,
   checkProblem,
@@ -875,19 +875,19 @@ export function createStudioApp(options: StudioAppOptions = {}): express.Express
   api.post('/export-all', heavyLimiter, handle(async (_req, res) => {
     const dirs = listProblemDirs();
     const browser = await getBrowser();
-    const results: Array<{ folder: string; ok: boolean; code?: string; downloadUrl?: string; errorMessage?: string }> = [];
+    type ExportAllResult = { folder: string; ok: boolean; code?: string; downloadUrl?: string; errorMessage?: string };
 
-    for (const dir of dirs) {
+    const results = await mapConcurrent(dirs, PDF_CONCURRENCY, async (dir): Promise<ExportAllResult> => {
       const folder = path.basename(dir);
       try {
         const result = await exportProblemPdf(dir, browser);
-        results.push({ folder, ok: true, code: result.code, downloadUrl: pdfDownloadUrl(folder) });
+        return { folder, ok: true, code: result.code, downloadUrl: pdfDownloadUrl(folder) };
       } catch (err) {
         const message =
           err instanceof ProblemError ? err.message : err instanceof Error ? err.message : String(err);
-        results.push({ folder, ok: false, errorMessage: message });
+        return { folder, ok: false, errorMessage: message };
       }
-    }
+    });
 
     res.json({ results });
   }));

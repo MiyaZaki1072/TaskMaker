@@ -79,8 +79,8 @@ export async function startServer(problemDir: string, options: ServerOptions = {
 
   app.use('/assets', express.static(path.join(ROOT, 'assets'), { fallthrough: true }));
   // Chromium loads every problem image through this route during PDF and booklet export.
-  // express.static on its own reads only this instance's working copy, so on a cold instance (an
-  // evicted /tmp, or an image another instance uploaded) an export silently produced a PDF with
+  // express.static on its own reads only the local working copy, so after a restart (when images
+  // are fetched from the database only as something asks for them) an export silently produced a PDF with
   // the images missing and no error anywhere. Hydrating from the database here — the same gate
   // Studio's own /problem-assets route uses — makes the database the authority for these bytes on
   // every read path, not just the pre-render pass above.

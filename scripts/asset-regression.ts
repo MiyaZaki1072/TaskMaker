@@ -2,7 +2,7 @@
  * npm run test:assets
  *
  * Reproduces the "uploaded image disappears from the picker" bug end-to-end, against a real
- * database, by simulating exactly what a cold serverless instance looks like: the database has
+ * database, by simulating exactly what a freshly started container looks like: the database has
  * the asset, local disk does not.
  *
  * Before the fix, this failed because GET /api/problems/:folder/assets listed straight off
@@ -20,7 +20,10 @@
  * Each check re-simulates the cold instance first, because the check before it may have hydrated
  * the file back onto disk as a side effect.
  *
- * Requires a real DATABASE_URL (a disposable Neon branch is a good choice). This cannot be
+ * Requires a real DATABASE_URL pointing at a disposable database, e.g. a throwaway container:
+ *   docker run --rm -d -p 5433:5432 -e POSTGRES_PASSWORD=test postgres:16
+ *   DATABASE_URL=postgres://postgres:test@localhost:5433/postgres npm run test:assets
+ * This cannot be
  * exercised without one: the bug is a cross-instance consistency problem, and without a database
  * there is only one "instance" (this process), so there is nothing to catch.
  *
@@ -41,9 +44,9 @@ const PASSWORD = 'asset_regression_test_password';
 async function main(): Promise<void> {
   if (!isDbConfigured()) {
     console.log('\n  Skipped: no DATABASE_URL configured.');
-    console.log('  This test simulates a cold serverless instance (database has the asset, local disk');
+    console.log('  This test simulates a freshly started container (database has the asset, local disk');
     console.log('  does not) — without a real database there is only one "instance", so there is');
-    console.log('  nothing for this test to catch. Point DATABASE_URL at a disposable branch to run it.\n');
+    console.log('  nothing for this test to catch. Point DATABASE_URL at a disposable database to run it.\n');
     return;
   }
 

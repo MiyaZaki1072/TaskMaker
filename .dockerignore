@@ -19,3 +19,9 @@ dist
 .DS_Store
 Thumbs.db
 master-prompt-sovn-problem-system.md
+
+# Your local problems. The image must ship with problems/ empty: on a fresh database the app seeds
+# whatever it finds there, so a baked-in problem would claim the database first and then collide
+# with a backup restored into it.
+problems/*
+!problems/.gitkeep

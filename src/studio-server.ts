@@ -205,11 +205,10 @@ function resolveFolder(folderParam: string): string {
 }
 
 /**
- * Resolves a problem folder, pulling it into the working copy first if this instance has never
- * seen it. A problem created on another serverless instance does not exist locally until a
- * reconcile happens, and every route that resolves a folder would otherwise report it as "not
- * found" — which is what made "export PDF" fail on a freshly created problem until it was saved.
- * Free when the problem is already present.
+ * Resolves a problem folder, pulling it into the working copy first if it is not there yet. A
+ * problem that is in the database but not yet on local disk (the working copy is rebuilt from the
+ * database, in the background) would otherwise be reported as "not found" by every route that
+ * resolves a folder. Free when the problem is already present.
  */
 async function resolveFolderPresent(folderParam: string): Promise<string> {
   await ensureProblemPresent(folderParam);
@@ -310,8 +309,8 @@ export function createStudioApp(options: StudioAppOptions = {}): express.Express
   }
 
   // Hydrate the working copy from the database if one is configured. We must wait for this to
-  // finish before handling any request, otherwise a cold-start request hits an empty /tmp and
-  // fails with "problem not found".
+  // finish before handling any request, otherwise a request right after boot hits an empty
+  // working copy and fails with "problem not found".
   const storageReady: Promise<void> = initStorage().catch((err) => console.error('[Storage Init Error]', err));
 
   // Hold the first requests until that finishes: the container's working copy starts empty on
@@ -618,8 +617,9 @@ export function createStudioApp(options: StudioAppOptions = {}): express.Express
   app.use('/vendor/hljs', express.static(HLJS_STYLES, IMMUTABLE_ASSET));
 
   app.get('/problem-assets/:folder/*splat', async (req, res) => {
+    const folderParam = paramStr(req.params.folder);
     try {
-      const dir = await resolveFolderPresent(paramStr(req.params.folder));
+      const dir = await resolveFolderPresent(folderParam);
       const splat = req.params.splat as string[] | string | undefined;
       const parts = Array.isArray(splat) ? splat : splat ? [splat] : [];
       if (parts.length === 0) {
@@ -643,13 +643,23 @@ export function createStudioApp(options: StudioAppOptions = {}): express.Express
       if (!fs.existsSync(target)) {
         const relative = ['assets', ...parts].join('/');
         if (!(await ensureAssetLocal(path.basename(dir), relative))) {
+          // Logged because the browser only shows a broken image: a problem whose YAML points at
+          // files the database never received (a partial restore, say) is otherwise invisible.
+          console.warn(`[Assets] Not in the working copy or the database: ${path.basename(dir)}/${relative}`);
           res.status(404).end();
           return;
         }
       }
       res.sendFile(target);
-    } catch {
-      res.status(404).end();
+    } catch (err) {
+      // A bad or unknown folder name really is "not found". Anything else — the database being
+      // unreachable, most likely — is an outage, and must not be passed off as a missing image.
+      if (err instanceof ProblemError) {
+        res.status(404).end();
+        return;
+      }
+      console.error(`[Assets] Could not serve an image for "${folderParam}":`, err);
+      res.status(503).end();
     }
   });
 
@@ -748,11 +758,10 @@ export function createStudioApp(options: StudioAppOptions = {}): express.Express
   api.get('/problems/:folder/assets', handle(async (req, res) => {
     const dir = await resolveFolderPresent(paramStr(req.params.folder));
     const folder = path.basename(dir);
-    // The database is the durable, cross-instance source of truth for assets (see
-    // saveAssetInStorage/deleteAssetInStorage); listing from local disk alone only reflects
-    // whatever this one serverless instance happens to have cached, which is what made uploaded
-    // images intermittently appear/disappear from the picker depending on which instance served
-    // the request. Fall back to the local listing only when no database is configured (local dev).
+    // The database is the durable source of truth for assets (see
+    // saveAssetInStorage/deleteAssetInStorage); local disk only holds the images that have been
+    // fetched into the working copy so far, so listing from it would hide the rest. Fall back to
+    // the local listing only when no database is configured (local dev).
     if (isDbConfigured()) {
       const rows = await listAssetsInStorage(folder);
       const assets = rows
@@ -915,9 +924,9 @@ export function createStudioApp(options: StudioAppOptions = {}): express.Express
     const zip = new AdmZip();
     for (const dir of dirs) {
       const folderName = path.basename(dir);
-      // addLocalFolder reads straight off local disk, which on a cold serverless instance may be
-      // missing assets that only exist in the database — hydrate first so the ZIP is never a
-      // silent partial backup (see ensureAllAssetsLocal).
+      // addLocalFolder reads straight off local disk, and images are only fetched into the working
+      // copy when something asks for them — hydrate first so the ZIP is never a silent partial
+      // backup (see ensureAllAssetsLocal).
       await ensureAllAssetsLocal(folderName);
       zip.addLocalFolder(dir, folderName);
     }

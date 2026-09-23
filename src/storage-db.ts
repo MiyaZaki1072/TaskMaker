@@ -1,40 +1,29 @@
 /**
- * Durable storage for the problem set, backed by Postgres instead of a flat object store.
- * The connection is made in db.ts — a plain `pg` pool, so this works against the Postgres
- * container in the ZimaOS docker-compose stack as well as any managed provider.
+ * Durable storage for the problem set, in Postgres. The connection is made in db.ts — a plain
+ * `pg` pool pointed at the Postgres container in the docker-compose stack.
  *
- * Why a database rather than an object store
- * -------------------------------------------
- * This used to be backed by a flat, eventually-consistent object store with a CDN in front of it. Almost every bug
- * this project hit — a just-created problem reading back 404, a save silently racing another
- * save, "which of my 15 files actually made it up" — was the cost of faking transactional
- * consistency on top of that. A real database has that consistency built in, so most of the
- * machinery the Blob version needed (etag tracking, a three-phase reconcile, a hand-rolled
- * bounded-wait lock, CDN cache-busting) is simply gone here, not ported:
+ * The database is what keeps concurrent edits honest:
  *
  *   - Uniqueness and the MAX_PROBLEMS cap are enforced by the database in one atomic statement
  *     (a real UNIQUE constraint + an advisory lock around the count check), not by a filesystem
- *     existence check racing another instance's filesystem existence check.
+ *     existence check that two requests could both pass.
  *   - A save is one `UPDATE … RETURNING version`. The returned version tells us both the new
  *     state and whether we just overwrote someone else's newer save — no separate etag, no
  *     separate "did it change" round trip.
  *   - A conflict is a real Postgres error code (23505 unique_violation), not a guess based on
  *     matching an error message string.
- *   - There is no CDN, so there is no read-after-write staleness to work around.
  *
- * What's still here from the Blob version
- * ----------------------------------------
- * The database is the source of truth; each serverless instance still keeps a working copy under
- * PROBLEMS_DIR so the existing filesystem-based render/PDF pipeline (render.ts, booklet.ts,
- * pdf-export.ts) does not need to change. Reads stay off the request's critical path the same
- * way: a background nudge keeps the working copy roughly current, and the routes that need
+ * The working copy
+ * ----------------
+ * The database is the source of truth; the app also keeps a working copy under PROBLEMS_DIR so
+ * the filesystem-based render/PDF pipeline (render.ts, booklet.ts, pdf-export.ts) can read plain
+ * files. That copy is scratch space, rebuilt from the database on boot. Reads stay off the
+ * request's critical path: a background nudge keeps it roughly current, and the routes that need
  * freshness (opening a problem, saving, the dashboard listing) ask for exactly what they need.
  *
- * Image bytes are stored as base64 TEXT, not bytea. That choice was originally forced by the Neon
- * HTTP driver (which sent parameters as JSON); the self-hosted `pg` driver could marshal a Buffer
- * to bytea directly, but the column stays TEXT so an existing database migrates across by copying
- * rows verbatim, with no type conversion step to get wrong. The cost is ~33% more bytes on the
- * wire — a non-issue at this project's scale (at most 15 problems, a few small images each).
+ * Image bytes are stored as base64 TEXT, not bytea, so a backup is a plain-text SQL dump that
+ * restores with no type conversion step to get wrong. The cost is ~33% more bytes on the wire —
+ * a non-issue at this project's scale (at most 15 problems, a few small images each).
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -411,8 +400,8 @@ export async function ensureAssetLocal(folder: string, relative: string): Promis
  * column, since this backs the picker's list view where pulling every file's bytes on every open
  * would be wasteful. This is the fix for the picker "glitch": listing used to come from
  * fs.readdirSync() on local disk (problem-ops.ts's listProblemAssets), which only reflects
- * whatever this one serverless instance happens to have cached in /tmp. The database is the
- * durable, cross-instance source of truth (see saveAssetInStorage/deleteAssetInStorage), so the
+ * whatever images have been fetched into the working copy so far. The database is the
+ * durable source of truth (see saveAssetInStorage/deleteAssetInStorage), so the
  * list shown to the author needs to come from here too, the same way ensureAssetLocal already
  * treats the database as authoritative for a single file's bytes.
  */
@@ -429,7 +418,7 @@ export async function listAssetsInStorage(folder: string): Promise<Array<{ filen
  * the database first. Unlike ensureAssetLocal (one file, fetched lazily as a browser request for
  * it comes in), this is for bulk local-disk readers — ZIP export builds its archive straight off
  * the assets/ folder via adm-zip's addLocalFolder, which would otherwise silently ship whatever a
- * cold instance's /tmp happens to hold instead of the complete set.
+ * freshly started container's working copy happens to hold instead of the complete set.
  */
 export async function ensureAllAssetsLocal(folder: string): Promise<void> {
   if (!isDbConfigured()) return;
@@ -443,8 +432,8 @@ export async function ensureAllAssetsLocal(folder: string): Promise<void> {
  * Creates a problem. When a database is configured, uniqueness and the MAX_PROBLEMS cap are
  * enforced by the database in one atomic statement: `pg_advisory_xact_lock` inside a CTE
  * serializes concurrent creates for the duration of the statement (the lock is transaction-scoped
- * and this is one implicit transaction), so the count check and the insert can never race across
- * instances the way the Blob version's local-only lock could not. A real UNIQUE constraint is
+ * and this is one implicit transaction), so the count check and the insert can never race each
+ * other the way a check-then-insert in application code could. A real UNIQUE constraint is
  * still the backstop for the name itself.
  */
 export async function createProblemInStorage(rawName: string): Promise<CreatedProblem> {
@@ -611,7 +600,7 @@ export async function saveAssetInStorage(folder: string, filename: string, data:
 /**
  * Deletes one image from the database. Returns whether a row was actually removed — the caller
  * needs that to answer "did this image exist?", because local disk cannot: the working copy is
- * per-instance, so an image can be absent from /tmp and still be perfectly present here.
+ * scratch space, so an image can be absent from local disk and still be perfectly present here.
  */
 export async function deleteAssetInStorage(folder: string, filename: string): Promise<boolean> {
   if (!isDbConfigured()) return false;

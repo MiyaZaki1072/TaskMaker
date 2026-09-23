@@ -3,7 +3,7 @@
  * Verifies DATABASE_URL is set and reachable, and creates the `problems`/`problem_assets`
  * tables if they don't exist yet. Safe to run any number of times (CREATE TABLE IF NOT EXISTS).
  * Studio also does this automatically on cold start, so this is mainly for checking your setup
- * before deploying, or for running it once against a fresh Neon database by hand.
+ * before deploying, or for preparing a fresh database by hand.
  */
 import { isDbConfigured, initSchema } from '../src/storage-db.js';
 

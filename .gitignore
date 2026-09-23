@@ -2,8 +2,7 @@ node_modules/
 dist/
 .cache/
 
-# Database credentials. .env.test holds a throwaway Neon branch URL used by `npm run test:assets`;
-# note a Neon branch inherits its parent's role password, so this file is as sensitive as production.
+# Credentials: STUDIO_PASSWORD, POSTGRES_PASSWORD, and any DATABASE_URL you set for local runs.
 .env
 .env.*
 !.env.example
@@ -11,7 +10,6 @@ dist/
 *.log
 .DS_Store
 Thumbs.db
-.vercel
 master-prompt-sovn-problem-system.md
 .claude
 

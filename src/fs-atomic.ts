@@ -31,8 +31,8 @@ export function writeFileAtomic(file: string, data: string | Buffer): void {
 
 /**
  * Short content fingerprint used for "did someone else change this file since I loaded it?" checks.
- * A content hash (rather than an mtime) is what we want here: it is stable across the
- * download-from-blob step, which rewrites files and therefore bumps their mtime.
+ * A content hash (rather than an mtime) is what we want here: it is stable across the working
+ * copy being rewritten from the database, which bumps every file's mtime without changing it.
  */
 export function contentVersion(data: string | Buffer): string {
   return crypto.createHash('sha256').update(data).digest('hex').slice(0, 16);

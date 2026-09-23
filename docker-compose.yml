@@ -3,7 +3,7 @@
 #   cp .env.example .env     # then edit it — STUDIO_PASSWORD and POSTGRES_PASSWORD are required
 #   docker compose up -d --build
 #
-# Two containers: the studio itself, and the Postgres that replaces Neon. They talk over a private
+# Two containers: the studio itself, and the Postgres that holds every problem. They talk over a private
 # Docker network, so Postgres is never published to the LAN — the only way to reach the data is
 # through the studio (or `docker compose exec db psql`).
 name: rywcc-problem-studio

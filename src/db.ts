@@ -1,21 +1,14 @@
 /**
  * Postgres access for the self-hosted deployment.
  *
- * Why this file exists
- * --------------------
- * storage-db.ts was written against @neondatabase/serverless, whose whole API surface is a
- * tagged template you await:  await sql`SELECT ... WHERE folder = ${folder}`.  That driver talks
- * to Neon over HTTP and cannot reach an ordinary Postgres server at all, so moving the app onto
- * ZimaOS (where Postgres is a container on the same Docker network, reached over TCP) means
- * changing drivers.
+ * storage-db.ts queries through a tagged template you await:
+ *   await sql`SELECT ... WHERE folder = ${folder}`
+ * rather than pool.query('... $1 ...', [folder]), because writing the value where it is used
+ * leaves no way to mismatch a placeholder against its position in an array. On top of `pg`:
  *
- * Rather than rewrite ~20 query sites into pool.query('... $1 ...', [folder]) — a mechanical
- * change with a real chance of mismatching a placeholder against its value — this module
- * reproduces the small slice of the Neon API that storage-db.ts actually used, on top of `pg`:
- *
- *   - a tagged template that turns ${value} interpolations into $1, $2, … bind parameters
- *     (so values are still parameterised, never string-concatenated into SQL),
- *   - awaiting a query resolves to the rows array, exactly as the Neon driver did,
+ *   - the tag turns ${value} interpolations into $1, $2, … bind parameters
+ *     (so values are always parameterised, never string-concatenated into SQL),
+ *   - awaiting a query resolves to the rows array,
  *   - transaction([...]) runs a list of not-yet-executed queries in one BEGIN/COMMIT.
  *
  * The laziness matters for that last point: a query built by this tagged template does not hit
@@ -64,10 +57,8 @@ export interface SqlTag {
 }
 
 function connectionString(): string | undefined {
-  // DATABASE_URL is the portable name and what docker-compose sets for the self-hosted stack.
-  // POSTGRES_URL / DATABASE_URL_UNPOOLED are also accepted, since hosted Postgres providers
-  // commonly set one of those names instead.
-  return process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.DATABASE_URL_UNPOOLED;
+  // docker-compose.yml builds this from POSTGRES_PASSWORD; set it by hand only outside Docker.
+  return process.env.DATABASE_URL || undefined;
 }
 
 export function isDbConfigured(): boolean {
@@ -75,7 +66,7 @@ export function isDbConfigured(): boolean {
 }
 
 /**
- * TLS is required by hosted providers (Neon and friends) and actively wrong for the ZimaOS stack,
+ * TLS is required by most hosted Postgres providers and actively wrong for the ZimaOS stack,
  * where Postgres is another container on a private Docker network with no certificate of its own.
  * Asking for TLS there fails the connection outright, so it is opt-in: on when the URL says so,
  * or when PGSSLMODE requests it.
@@ -86,7 +77,7 @@ function sslConfig(conn: string): pg.PoolConfig['ssl'] {
     ['require', 'verify-ca', 'verify-full'].includes(process.env.PGSSLMODE ?? '');
   if (!wantsSsl) return undefined;
   // Hosted Postgres commonly presents a chain Node does not have a root for. The alternative is
-  // refusing to connect at all, and this is the same trust level the Neon HTTP driver gave us.
+  // refusing to connect at all.
   return { rejectUnauthorized: false };
 }
 
@@ -152,7 +143,7 @@ function makeTag(execute: (text: string, values: unknown[]) => Promise<unknown[]
 
 let tag: SqlTag | undefined;
 
-/** The tagged template storage-db.ts queries through. Shaped like the Neon driver it replaced. */
+/** The tagged template storage-db.ts queries through. */
 export function sql(): SqlTag {
   if (!tag) {
     tag = makeTag(async (text, values) => {
@@ -163,7 +154,7 @@ export function sql(): SqlTag {
   return tag;
 }
 
-/** Postgres error codes storage-db.ts branches on, via pg's error type instead of Neon's */
+/** Postgres error codes storage-db.ts branches on */
 export function isUniqueViolation(err: unknown): boolean {
   return err instanceof DatabaseError && err.code === '23505';
 }

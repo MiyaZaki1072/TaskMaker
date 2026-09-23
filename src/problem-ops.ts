@@ -204,9 +204,9 @@ export function saveProblemAsset(dir: string, filename: string, data: Buffer): A
  * Deletes an image from the problem's assets/ folder. Returns whether a local file was actually
  * removed.
  *
- * A missing local file is deliberately not an error. The working copy is per-instance (/tmp on
- * the container), so an image uploaded by a different instance — or by this one before it restarted —
- * legitimately exists only in the database. Throwing here meant the caller never reached
+ * A missing local file is deliberately not an error. The working copy is scratch space in the
+ * container, so an image uploaded before the last restart legitimately exists only in the
+ * database until something asks for it. Throwing here meant the caller never reached
  * deleteAssetInStorage, so "delete this image" failed with a bogus "not found in this problem" and
  * left the database row behind. Whether the image existed at all is the database's answer to give
  * (see the DELETE route in studio-server.ts), not local disk's.

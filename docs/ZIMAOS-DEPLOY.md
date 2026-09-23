@@ -1,6 +1,6 @@
 # Deploying Problem Studio on ZimaOS
 
-This replaces the Vercel + Neon setup. Everything the deployment needs is in this repository:
+Everything the deployment needs is in this repository:
 `Dockerfile`, `docker-compose.yml`, `.env.example`.
 
 The stack is two containers:
@@ -8,7 +8,7 @@ The stack is two containers:
 | Container | What it is | Durable? |
 | --- | --- | --- |
 | `app` | the studio itself (Express + Chromium for PDF export) | no — rebuilt from the image every time |
-| `db` | Postgres 16, replacing Neon | **yes** — the `studio-db` volume is the only thing to back up |
+| `db` | Postgres 16 | **yes** — the `studio-db` volume is the only thing to back up |
 
 Problems and images live in Postgres. The copy on the `app` container's filesystem is scratch
 space that is rebuilt from the database on every boot, which is why restarting or updating the
@@ -107,40 +107,6 @@ step 4; importing only gives it a tile on the dashboard.
 
 ---
 
-## Moving your existing data from Neon
-
-Do this **before** step 4 if you want the problems currently on Vercel to come across. The schema
-is unchanged, so it is a plain dump and restore.
-
-```sh
-# On any machine that can reach both — your laptop is fine.
-# Get the Neon URL from the Vercel project's environment variables.
-pg_dump "postgres://…neon.tech/neondb?sslmode=require" \
-  --no-owner --no-acl --data-only \
-  -t problems -t problem_assets -t storage_meta \
-  > studio-data.sql
-```
-
-Then, on the ZimaOS box with the stack running:
-
-```sh
-docker compose exec -T db psql -U studio -d studio < studio-data.sql
-docker compose restart app
-```
-
-Restarting `app` makes it reconcile its working copy against the freshly imported data.
-
-Two things to know:
-
-- **Skip `storage_meta` if you prefer a clean start.** It carries the `seeded` marker and the
-  session secret. Importing it is fine; leaving it out just means the studio generates a new
-  session secret and decides for itself whether to seed from the repo's `problems/` folder.
-- **Rotate the Neon credentials afterwards.** The `.env` in this repo's working tree still holds
-  live Neon connection strings from the old deployment. Once the data is across, delete the Neon
-  project or change its password — those credentials are as sensitive as the database itself.
-
----
-
 ## Day-to-day
 
 ```sh
@@ -150,8 +116,12 @@ git pull && docker compose up -d --build
 # Back up (this is the only thing worth backing up)
 docker compose exec -T db pg_dump -U studio studio > backup-$(date +%F).sql
 
-# Restore into an empty stack
+# Restore into a new stack: start only the database, restore, then start the studio.
+# If the studio boots first it initialises the empty database itself, and the restore then
+# collides with those rows instead of filling the tables.
+docker compose up -d --wait db
 docker compose exec -T db psql -U studio -d studio < backup-2026-09-21.sql
+docker compose up -d
 
 # Change the studio password — this also signs everyone out, by design
 nano .env && docker compose up -d
@@ -206,29 +176,3 @@ Everything below is set in `.env` and read by `docker-compose.yml`.
 | `SESSION_SECRET` | *(auto)* | Generated once and kept in Postgres; set it only to force everyone out |
 | `SESSION_TTL_HOURS` | `720` | How long a login lasts (30 days) |
 | `POSTGRES_USER` / `POSTGRES_DB` | `studio` | Database user and name |
-
----
-
-## What changed in the code
-
-For anyone reading the diff rather than deploying:
-
-- `src/db.ts` — **new.** A `pg` connection pool behind a tagged-template API shaped like the Neon
-  driver's, so `src/storage-db.ts`'s ~20 queries did not have to be rewritten into positional
-  placeholders. `@neondatabase/serverless` speaks HTTP to Neon specifically and cannot reach an
-  ordinary Postgres server.
-- `src/auth.ts` — **new.** Login, signed session cookies, constant-time password comparison, and
-  the cross-site request check.
-- `src/studio-server.ts` — the HTTP Basic gate became a login page plus sessions; added
-  `/login`, `/logout` and an unauthenticated `/healthz`; the listen host and proxy-trust setting
-  are now configuration rather than "is this Vercel".
-- `src/render.ts` — the working-copy path is `PROBLEMS_DIR` rather than a Vercel check, and the
-  flag that lets storage reconcile *delete* local folders now refuses to apply to a real checkout.
-- `src/pdf-export.ts` — Chromium can come from `PUPPETEER_EXECUTABLE_PATH` (the distro package in
-  the container) instead of only puppeteer's bundled x86-only download.
-- `scripts/serve.ts` — **new.** The container entrypoint: binds `0.0.0.0`, handles `SIGTERM`, and
-  refuses to start without a database.
-
-The Vercel deployment path has since been removed entirely — `vercel.json`, `src/vercel-entry.ts`,
-the generated `api/` bundle and the `IS_VERCEL` branches are all gone. Docker is the only supported
-deployment now. Git history still has them if you ever need to look.

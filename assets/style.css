@@ -318,6 +318,55 @@ pre.io {
   font-style: italic;
 }
 
+/* ---------- Writer formatting (see text.ts) ---------- */
+/* Tables typed as | a | b | rows: always the full width of the page, like the subtask table */
+.rich-table {
+  width: 100%;
+  overflow-wrap: anywhere;
+}
+
+/* A freshly inserted table has empty cells; keep their rows full height instead of collapsing */
+.rich-table td:empty::after,
+.rich-table th:empty::after {
+  content: '\00a0';
+}
+
+.rich-table .cell-center {
+  text-align: center;
+}
+
+.rich-table .cell-right {
+  text-align: right;
+}
+
+.rich-heading {
+  margin: 14px 0 4px;
+  font-size: 1.1rem;
+  color: var(--accent);
+}
+
+.rich-divider {
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: 12px 0;
+}
+
+/* A fixed palette, each dark enough to read on paper; [color=…] can only pick from these */
+.text-red { color: #c62828; }
+.text-blue { color: #1565c0; }
+.text-green { color: #2e7d32; }
+.text-orange { color: #d35400; }
+.text-gray { color: #5f6368; }
+
+.text-hl {
+  background: #fff176;
+  color: inherit;
+  padding: 0 2px;
+}
+
+.text-big { font-size: 1.2em; }
+.text-small { font-size: 0.85em; }
+
 .align-center {
   text-align: center;
 }

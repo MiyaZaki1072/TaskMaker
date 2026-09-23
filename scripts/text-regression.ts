@@ -127,6 +127,72 @@ checkRich(
   '<div class="align-center"><p>first</p>\n<p>second</p></div>',
 );
 
+console.log('\n  Word-style formatting: italic, underline, strike, colour, highlight, super/subscript, size\n');
+
+checkInline(
+  'each paired code becomes its element',
+  '[i]i[/i] [u]u[/u] [s]s[/s] x[sup]2[/sup] a[sub]1[/sub] [hl]h[/hl] [big]B[/big] [small]S[/small]',
+  '<em>i</em> <u>u</u> <s>s</s> x<sup>2</sup> a<sub>1</sub> <mark class="text-hl">h</mark> <span class="text-big">B</span> <span class="text-small">S</span>',
+);
+checkInline('colour from the palette becomes a class', '[color=red]stop[/color]', '<span class="text-red">stop</span>');
+checkInline(
+  'a colour outside the palette is left as text — no way to inject CSS',
+  '[color=red;background:url(x)]x[/color] [color=purple]p[/color]',
+  '[color=red;background:url(x)]x[/color] [color=purple]p[/color]',
+);
+checkInline(
+  'codes nest, and math works inside them',
+  '[b][color=blue]$n^2$ [i]fast[/i][/color][/b]',
+  `<strong><span class="text-blue">${renderInline('$n^2$')} <em>fast</em></span></strong>`,
+);
+checkInline('the same code nested inside itself closes at the right place', '[b]a [b]b[/b] c[/b]', '<strong>a <strong>b</strong> c</strong>');
+checkInline('[s] is not confused with [sup] / [sub] / [small]', '[s]x[/s][sup]y[/sup]', '<s>x</s><sup>y</sup>');
+checkInline(
+  'an unsupported colour nested inside a real one does not steal its close',
+  '[color=red]a [color=purple]b[/color] c',
+  '<span class="text-red">a [color=purple]b</span> c',
+);
+
+console.log('\n  Tables, headings, dividers\n');
+
+checkRich(
+  'a separator row makes the first row a header and sets column alignment',
+  '| name | score |\n| --- | :---: |\n| A | 100 |\n| B | 50 |',
+  '<table class="rich-table"><thead><tr><th>name</th><th class="cell-center">score</th></tr></thead>' +
+    '<tbody><tr><td>A</td><td class="cell-center">100</td></tr><tr><td>B</td><td class="cell-center">50</td></tr></tbody></table>',
+);
+checkRich(
+  'no separator row: every row is a body row',
+  '| a | b |\n| c | d |',
+  '<table class="rich-table"><tbody><tr><td>a</td><td>b</td></tr><tr><td>c</td><td>d</td></tr></tbody></table>',
+);
+checkRich(
+  'short rows are padded so the grid stays rectangular',
+  '| a | b | c |\n| d |',
+  '<table class="rich-table"><tbody><tr><td>a</td><td>b</td><td>c</td></tr><tr><td>d</td><td></td><td></td></tr></tbody></table>',
+);
+checkRich(
+  'a | inside math, inside an image, or escaped does not split the cell',
+  '| $|a-b|$ | [img: assets/x.png | cap] | a \\| b |',
+  `<table class="rich-table"><tbody><tr><td>${renderInline('$|a-b|$')}</td><td>${renderInline('[img: assets/x.png | cap]')}</td><td>a | b</td></tr></tbody></table>`,
+);
+checkRich(
+  'cells take inline formatting and are escaped',
+  '| [b]<x>[/b] |',
+  '<table class="rich-table"><tbody><tr><td><strong>&lt;x&gt;</strong></td></tr></tbody></table>',
+);
+checkRich(
+  'a table ends at the first non-table line',
+  'before\n| a |\nafter',
+  '<p>before</p>\n<table class="rich-table"><tbody><tr><td>a</td></tr></tbody></table>\n<p>after</p>',
+);
+checkRich(
+  'heading and divider lines',
+  '[h]Details[/h]\ntext\n---\nmore',
+  '<h3 class="rich-heading">Details</h3>\n<p>text</p>\n<hr class="rich-divider">\n<p>more</p>',
+);
+checkRich('--- inside a sentence is just text', 'a --- b', '<p>a --- b</p>');
+
 console.log('');
 if (failures > 0) {
   console.log(`  ${failures} check(s) failed\n`);

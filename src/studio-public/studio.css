@@ -647,6 +647,76 @@ dialog.modal.modal-wide {
   border-color: var(--accent);
 }
 
+/* ---------- Formatting toolbar (editor) ---------- */
+.fmt-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px;
+  margin: 4px 0 3px;
+}
+
+.fmt-btn,
+.fmt-color {
+  font: inherit;
+  font-size: 0.8rem;
+  min-width: 28px;
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--btn-bg);
+  color: var(--btn-ink);
+  cursor: pointer;
+}
+
+.fmt-btn:hover,
+.fmt-color:hover {
+  background: var(--btn-hover-bg);
+  border-color: var(--btn-hover-line);
+  color: var(--btn-hover-ink);
+}
+
+.fmt-btn:focus-visible,
+.fmt-color:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.fmt-bold { font-weight: 700; }
+.fmt-italic { font-style: italic; }
+.fmt-underline { text-decoration: underline; }
+.fmt-strike { text-decoration: line-through; }
+
+.fmt-sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 3px;
+  background: var(--line);
+}
+
+.fmt-table-pop {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.fmt-table-pop input[type="number"] {
+  width: 3.5em;
+  font: inherit;
+  padding: 2px 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--input-bg);
+  color: var(--ink);
+}
+
 /* ---------- Scoreboard page ---------- */
 .sb-cutoffs {
   display: grid;

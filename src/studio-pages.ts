@@ -2,7 +2,34 @@
  * Studio page shells (dashboard + editor) — the client side is plain vanilla JS,
  * no build step, to match the style of the rest of the project.
  */
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { ROOT } from './render.js';
 import { escapeHtml } from './text.js';
+
+/**
+ * A short hash of the studio's own CSS and JS, added to their URLs as ?v=… so every deploy that
+ * changes them gets URLs no cache has seen.
+ *
+ * Plain revalidation is not enough in production: Cloudflare's "Browser Cache TTL" rewrites the
+ * app's Cache-Control to hours, so browsers kept running a previous deploy's dashboard.js (it
+ * showed the removed 15-problem cap as "3/15" long after the server stopped enforcing it).
+ */
+const ASSET_VERSION = (() => {
+  const hash = crypto.createHash('sha1');
+  const studioPublic = path.join(ROOT, 'src', 'studio-public');
+  const files = [
+    path.join(ROOT, 'assets', 'style.css'),
+    ...fs.readdirSync(studioPublic).sort().map((name) => path.join(studioPublic, name)),
+  ];
+  for (const file of files) hash.update(fs.readFileSync(file));
+  return hash.digest('hex').slice(0, 10);
+})();
+
+function asset(url: string): string {
+  return `${url}?v=${ASSET_VERSION}`;
+}
 
 function shellHead(title: string): string {
   return `<!doctype html>
@@ -11,8 +38,8 @@ function shellHead(title: string): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(title)}</title>
-<link rel="stylesheet" href="/assets/style.css">
-<link rel="stylesheet" href="/studio-assets/studio.css">
+<link rel="stylesheet" href="${asset('/assets/style.css')}">
+<link rel="stylesheet" href="${asset('/studio-assets/studio.css')}">
 </head>`;
 }
 
@@ -147,7 +174,7 @@ export function dashboardPage(): string {
   </dialog>
 
   <div id="toast-wrap" class="toast-wrap"></div>
-  <script src="/studio-assets/dashboard.js" defer></script>
+  <script src="${asset('/studio-assets/dashboard.js')}" defer></script>
 </body>
 </html>`;
 }
@@ -213,7 +240,8 @@ export function editorPage(info: EditorPageInfo): string {
               <button type="button" class="btn btn-sm btn-insert-img" data-target="f-story">🖼️ Insert Image</button>
             </div>
             <div class="field-hint">💡 <strong>How to insert an image:</strong> type <code>img</code> in the story to pick from uploaded images, or type <code>[img: assets/filename.png]</code> (you can add a caption, e.g. <code>[img: assets/filename.png | image caption]</code>, and a size in pixels or %, e.g. <code>[img: assets/filename.png | image caption | 300]</code>)</div>
-            <div class="field-hint">💡 <strong>Text formatting:</strong> <code>[b]bold text[/b]</code> for bold &middot; <code>[br]</code> to break to a new line without starting a new paragraph &middot; wrap anything in <code>[center]...[/center]</code>, <code>[left]...[/left]</code>, or <code>[right]...[/right]</code> to align it (works on text and images)</div>
+            <div class="field-hint">💡 <strong>Text formatting:</strong> select text and use the toolbar (or Ctrl+B / Ctrl+I / Ctrl+U) — it types codes you can also write by hand: <code>[b]</code> <code>[i]</code> <code>[u]</code> <code>[s]</code> <code>[hl]</code> <code>[sup]</code> <code>[sub]</code> <code>[big]</code> <code>[small]</code> <code>[color=red]</code> (red, blue, green, orange, gray), each closed like <code>[/b]</code> &middot; <code>[br]</code> breaks the line &middot; <code>[center]...[/center]</code> aligns &middot; these work in every field</div>
+            <div class="field-hint">💡 <strong>Tables, headings, dividers</strong> (story and example explanations): <code>▦ Table</code> inserts rows like <code>| a | b |</code> — a <code>| --- | :---: |</code> row under the first makes it a header (<code>:---:</code> centres the column) &middot; <code>[h]Heading[/h]</code> on its own line &middot; a line of just <code>---</code> draws a divider</div>
             <textarea id="f-story" rows="6"></textarea>
           </fieldset>
           <fieldset>
@@ -285,7 +313,7 @@ export function editorPage(info: EditorPageInfo): string {
   </dialog>
 
   <div id="toast-wrap" class="toast-wrap"></div>
-  <script src="/studio-assets/editor.js" defer></script>
+  <script src="${asset('/studio-assets/editor.js')}" defer></script>
 </body>
 </html>`;
 }
@@ -343,7 +371,7 @@ export function scoreboardPage(): string {
   </div>
 
   <div id="toast-wrap" class="toast-wrap"></div>
-  <script src="/studio-assets/scoreboard.js" defer></script>
+  <script src="${asset('/studio-assets/scoreboard.js')}" defer></script>
 </body>
 </html>`;
 }

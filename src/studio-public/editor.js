@@ -47,6 +47,172 @@
   const acList = document.getElementById('img-autocomplete-list');
   const acUploadBtn = document.getElementById('ac-upload-btn');
 
+  // ========== Formatting toolbar ==========
+  // Buttons that type the formatting codes src/text.ts understands, so writers never have to
+  // remember them. Everything inserted is plain text: typing the codes by hand works the same.
+
+  const INLINE_BUTTONS = [
+    { tag: 'b', label: 'B', title: 'Bold (Ctrl+B)', cls: 'fmt-bold' },
+    { tag: 'i', label: 'I', title: 'Italic (Ctrl+I)', cls: 'fmt-italic' },
+    { tag: 'u', label: 'U', title: 'Underline (Ctrl+U)', cls: 'fmt-underline' },
+    { tag: 's', label: 'S', title: 'Strikethrough', cls: 'fmt-strike' },
+    { tag: 'hl', label: '🖍', title: 'Highlight' },
+    { tag: 'sup', label: 'x²', title: 'Superscript' },
+    { tag: 'sub', label: 'x₂', title: 'Subscript' },
+    { tag: 'big', label: 'A+', title: 'Bigger text' },
+    { tag: 'small', label: 'A−', title: 'Smaller text' },
+  ];
+  // Must match TEXT_COLORS in src/text.ts; any other name is printed as plain text
+  const TEXT_COLORS = [['red', 'Red'], ['blue', 'Blue'], ['green', 'Green'], ['orange', 'Orange'], ['gray', 'Gray']];
+  const SHORTCUTS = { b: 'b', i: 'i', u: 'u' };
+  let toolbarCount = 0;
+
+  function notifyEdited(el) {
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.focus();
+  }
+
+  /** Wraps the selection in open/close codes, keeping it selected so another click stacks a second code */
+  function wrapSelection(el, open, close) {
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    const selected = el.value.slice(start, end);
+    el.setRangeText(open + selected + close, start, end);
+    el.setSelectionRange(start + open.length, start + open.length + selected.length);
+    notifyEdited(el);
+  }
+
+  /** Replaces the selection with text on line(s) of its own, adding line breaks when mid-line */
+  function insertBlock(el, block) {
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    const before = start > 0 && el.value[start - 1] !== '\n' ? '\n' : '';
+    const after = end < el.value.length && el.value[end] !== '\n' ? '\n' : '';
+    el.setRangeText(before + block + after, start, end, 'end');
+    notifyEdited(el);
+  }
+
+  function selectedOr(el, fallback) {
+    return el.value.slice(el.selectionStart, el.selectionEnd) || fallback;
+  }
+
+  function tableTemplate(rows, cols) {
+    const line = (cells) => '| ' + cells.join(' | ') + ' |';
+    const out = [
+      line(Array.from({ length: cols }, (_, c) => 'Column ' + (c + 1))),
+      line(Array.from({ length: cols }, () => '---')),
+    ];
+    for (let r = 0; r < rows; r += 1) out.push(line(Array.from({ length: cols }, () => ' ')));
+    return out.join('\n');
+  }
+
+  /**
+   * Puts a toolbar above a textarea. `blocks` adds the multi-line tools (heading, divider,
+   * alignment, table) — only for fields rendered as rich text (story, example explanations).
+   */
+  function attachToolbar(el, { blocks }) {
+    toolbarCount += 1;
+    // A <label> wrapping a toolbar would otherwise "click" its first button (B) whenever the
+    // label's text is clicked; pointing the label at the textarea by id stops that.
+    const label = el.closest('label');
+    if (label) {
+      if (!el.id) el.id = 'fmt-target-' + toolbarCount;
+      label.htmlFor = el.id;
+    }
+
+    const bar = document.createElement('div');
+    bar.className = 'fmt-toolbar';
+    bar.setAttribute('role', 'toolbar');
+    bar.setAttribute('aria-label', 'Text formatting');
+
+    const addButton = (text, title, onClick, cls) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'fmt-btn' + (cls ? ' ' + cls : '');
+      btn.textContent = text;
+      btn.title = title;
+      btn.setAttribute('aria-label', title);
+      // Keep focus (and the selection) in the textarea while clicking
+      btn.addEventListener('mousedown', (ev) => ev.preventDefault());
+      btn.addEventListener('click', onClick);
+      bar.appendChild(btn);
+      return btn;
+    };
+    const addSeparator = () => {
+      const sep = document.createElement('span');
+      sep.className = 'fmt-sep';
+      bar.appendChild(sep);
+    };
+
+    for (const b of INLINE_BUTTONS) addButton(b.label, b.title, () => wrapSelection(el, '[' + b.tag + ']', '[/' + b.tag + ']'), b.cls);
+
+    const color = document.createElement('select');
+    color.className = 'fmt-color';
+    color.title = 'Text colour';
+    color.setAttribute('aria-label', 'Text colour');
+    color.innerHTML = '<option value="">🎨 Colour</option>' +
+      TEXT_COLORS.map(([value, name]) => '<option value="' + value + '">' + name + '</option>').join('');
+    color.addEventListener('change', () => {
+      if (color.value) wrapSelection(el, '[color=' + color.value + ']', '[/color]');
+      color.value = '';
+    });
+    bar.appendChild(color);
+
+    if (blocks) {
+      addSeparator();
+      addButton('H', 'Heading line', () => insertBlock(el, '[h]' + selectedOr(el, 'Heading') + '[/h]'), 'fmt-bold');
+      addButton('―', 'Divider line', () => insertBlock(el, '---'));
+      addButton('⇤', 'Align left', () => insertBlock(el, '[left]\n' + selectedOr(el, 'text') + '\n[/left]'));
+      addButton('↔', 'Centre', () => insertBlock(el, '[center]\n' + selectedOr(el, 'text') + '\n[/center]'));
+      addButton('⇥', 'Align right', () => insertBlock(el, '[right]\n' + selectedOr(el, 'text') + '\n[/right]'));
+      addSeparator();
+
+      const pop = document.createElement('span');
+      pop.className = 'fmt-table-pop';
+      pop.hidden = true;
+      // Plain spans, not <label>s: some toolbars already sit inside a field's <label>, and labels must not nest
+      pop.innerHTML =
+        '<span>Rows</span><input type="number" class="fmt-rows" min="1" max="30" value="3" aria-label="Table rows">' +
+        '<span>×</span>' +
+        '<span>Columns</span><input type="number" class="fmt-cols" min="1" max="12" value="3" aria-label="Table columns">' +
+        '<button type="button" class="btn btn-sm btn-primary fmt-insert-table">Insert</button>';
+      addButton('▦ Table', 'Insert a table', () => {
+        pop.hidden = !pop.hidden;
+        if (!pop.hidden) pop.querySelector('.fmt-rows').focus();
+      });
+      pop.querySelector('.fmt-insert-table').addEventListener('click', () => {
+        const clamp = (input, max) => Math.min(max, Math.max(1, parseInt(input.value, 10) || 1));
+        insertBlock(el, tableTemplate(clamp(pop.querySelector('.fmt-rows'), 30), clamp(pop.querySelector('.fmt-cols'), 12)));
+        pop.hidden = true;
+      });
+      pop.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') {
+          ev.preventDefault();
+          pop.querySelector('.fmt-insert-table').click();
+        } else if (ev.key === 'Escape') {
+          pop.hidden = true;
+          el.focus();
+        }
+      });
+      bar.appendChild(pop);
+    }
+
+    el.addEventListener('keydown', (ev) => {
+      const tag = SHORTCUTS[ev.key.toLowerCase()];
+      if (tag && (ev.ctrlKey || ev.metaKey) && !ev.shiftKey && !ev.altKey) {
+        ev.preventDefault();
+        wrapSelection(el, '[' + tag + ']', '[/' + tag + ']');
+      }
+    });
+
+    el.before(bar);
+  }
+
+  attachToolbar(fStory, { blocks: true });
+  attachToolbar(fInputFormat, { blocks: false });
+  attachToolbar(fOutputFormat, { blocks: false });
+  attachToolbar(fConstraints, { blocks: false });
+
   let originalContent = textarea.value;
   // Fingerprint of the problem.yaml this editor loaded. Sent back on save so the server can tell
   // us when somebody else changed the file in the meantime.
@@ -531,6 +697,7 @@
       openImagePicker(item.querySelector('.ex-image'), false);
     });
     item.querySelectorAll('input, textarea').forEach((inp) => inp.addEventListener('input', () => setDirty(true)));
+    attachToolbar(item.querySelector('.ex-explanation'), { blocks: true });
     fExamplesWrap.appendChild(item);
   }
 

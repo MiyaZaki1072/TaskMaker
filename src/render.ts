@@ -23,9 +23,10 @@ export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
  * these on every single page load. `immutable` matters as much as the long max-age here: it stops
  * the revalidation on a plain reload too, not just the download.
  *
- * Deliberately NOT applied to studio.css / dashboard.js / editor.js or assets/style.css. Those
- * change whenever the app is redeployed and their URLs carry no content hash, so they keep
- * ordinary ETag revalidation — a cheap 304, and they can never be served stale after an update.
+ * Deliberately NOT applied to studio.css, the studio scripts or assets/style.css: those change
+ * whenever the app is redeployed. They are served `private, no-cache` (ETag revalidation, a cheap
+ * 304) and the studio pages add a content hash to their URLs — the header alone is not enough
+ * behind Cloudflare, which rewrites it to hours (see ASSET_VERSION in studio-pages.ts).
  */
 export const IMMUTABLE_ASSET = { maxAge: '365d', immutable: true } as const;
 

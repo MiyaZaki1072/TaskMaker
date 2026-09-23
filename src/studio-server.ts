@@ -84,6 +84,9 @@ import {
 const KATEX_DIST = path.join(ROOT, 'node_modules', 'katex', 'dist');
 const HLJS_STYLES = path.join(ROOT, 'node_modules', 'highlight.js', 'styles');
 const STUDIO_PUBLIC = path.join(ROOT, 'src', 'studio-public');
+const PRIVATE_REVALIDATE = {
+  setHeaders: (res: http.ServerResponse) => res.setHeader('Cache-Control', 'private, no-cache'),
+};
 
 interface ParsedZipProblem {
   folder: string;
@@ -623,8 +626,11 @@ export function createStudioApp(options: StudioAppOptions = {}): express.Express
   // Mounted before /assets so the fonts match here first and get the immutable policy; the
   // shorter /assets mount below still serves style.css with ordinary revalidation.
   app.use('/assets/fonts', express.static(path.join(ROOT, 'assets', 'fonts'), IMMUTABLE_ASSET));
-  app.use('/assets', express.static(path.join(ROOT, 'assets')));
-  app.use('/studio-assets', express.static(STUDIO_PUBLIC));
+  // Behind the login, so kept out of shared caches (Cloudflare) and revalidated on every load. The
+  // studio pages also version these URLs (see ASSET_VERSION in studio-pages.ts), which is what
+  // actually defeats a CDN that overrides the header.
+  app.use('/assets', express.static(path.join(ROOT, 'assets'), PRIVATE_REVALIDATE));
+  app.use('/studio-assets', express.static(STUDIO_PUBLIC, PRIVATE_REVALIDATE));
   app.use('/vendor/katex', express.static(KATEX_DIST, IMMUTABLE_ASSET));
   app.use('/vendor/hljs', express.static(HLJS_STYLES, IMMUTABLE_ASSET));
 

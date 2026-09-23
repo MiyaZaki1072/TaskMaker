@@ -650,7 +650,15 @@ export function createStudioApp(options: StudioAppOptions = {}): express.Express
           return;
         }
       }
-      res.sendFile(target);
+      // Relative to `root`, not the absolute path: `send` refuses (with a 404) any path containing a
+      // dot-directory, and in the container the working copy lives under /app/.runtime. With a root
+      // it only inspects the part of the path below assets/, which the guard above already bounds.
+      res.sendFile(path.relative(assetsDir, target), { root: assetsDir }, (err) => {
+        if (err && !res.headersSent) {
+          console.warn(`[Assets] Could not send ${path.basename(dir)}/${parts.join('/')}: ${err.message}`);
+          res.status(404).end();
+        }
+      });
     } catch (err) {
       // A bad or unknown folder name really is "not found". Anything else — the database being
       // unreachable, most likely — is an outage, and must not be passed off as a missing image.

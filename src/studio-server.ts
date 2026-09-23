@@ -25,7 +25,6 @@ import {
   checkProblem,
   deleteProblemAsset,
   listProblemAssets,
-  MAX_PROBLEMS,
   sanitizeAssetName,
   saveProblemAsset,
   type ProblemCheck,
@@ -63,7 +62,16 @@ import {
   storageHealth,
   syncFromStorage,
 } from './storage-db.js';
-import { dashboardPage, editorPage, loginPage } from './studio-pages.js';
+import {
+  buildScoreboard,
+  parseCmsRanking,
+  parseCutoff,
+  renderScoreboardPdf,
+  renderScoreboardPng,
+  scoreboardHtml,
+  type Scoreboard,
+} from './scoreboard.js';
+import { dashboardPage, editorPage, loginPage, scoreboardPage } from './studio-pages.js';
 import {
   clearSession,
   hasValidSession,
@@ -85,8 +93,8 @@ interface ParsedZipProblem {
 
 /**
  * Parses a ZIP into problem records in memory — no filesystem writes here. This lets the
- * database (when configured) decide what actually gets kept — the MAX_PROBLEMS cap and the
- * atomic multi-row write — before anything touches local disk; importParsedProblems in
+ * database (when configured) decide what actually gets kept — the atomic multi-row write —
+ * before anything touches local disk; importParsedProblems in
  * storage-db.ts does that decision and the eventual materialization.
  */
 function parseProblemsZip(buffer: Buffer, mode: 'add' | 'overwrite', existingFolders: Set<string>): ParsedZipProblem[] {
@@ -560,6 +568,10 @@ export function createStudioApp(options: StudioAppOptions = {}): express.Express
     res.type('html').send(dashboardPage());
   });
 
+  app.get('/scoreboard', (_req, res) => {
+    res.type('html').send(scoreboardPage());
+  });
+
   app.get('/editor/:folder', async (req, res) => {
     let dir: string;
     try {
@@ -709,14 +721,13 @@ export function createStudioApp(options: StudioAppOptions = {}): express.Express
       : health.ok
         ? undefined
         : health.message;
-    res.json({ problems, count: problems.length, max: MAX_PROBLEMS, warning });
+    res.json({ problems, count: problems.length, warning });
   }));
 
   api.post('/problems', handle(async (req, res) => {
     const name = typeof req.body?.name === 'string' ? req.body.name : '';
-    // The database enforces both the MAX_PROBLEMS cap and name uniqueness atomically (one
-    // statement, an advisory lock plus a real UNIQUE constraint — see createProblemInStorage), so
-    // no in-process lock is needed here.
+    // The database enforces name uniqueness with a real UNIQUE constraint (see
+    // createProblemInStorage), so no in-process lock is needed here.
     const created = await createProblemInStorage(name);
     res.status(201).json({ folder: created.folder });
   }));
@@ -923,6 +934,52 @@ export function createStudioApp(options: StudioAppOptions = {}): express.Express
     res.download('booklet.pdf', 'booklet.pdf', { root: DIST_DIR });
   }));
 
+  // ---------- Scoreboard ----------
+  // Built from the uploaded CMS ranking on every request and never stored, so there is no file to
+  // fetch afterwards: the PDF comes straight back in the response.
+  function scoreboardFromBody(body: Record<string, unknown>): Scoreboard {
+    const text = typeof body.ranking === 'string' ? body.ranking : '';
+    const cutoffs = (body.cutoffs ?? {}) as Record<string, unknown>;
+    return buildScoreboard(parseCmsRanking(text), {
+      contestName: typeof body.contestName === 'string' ? body.contestName.trim() : undefined,
+      authors: typeof body.authors === 'string' ? body.authors.trim() : undefined,
+      cutoffs: {
+        gold: parseCutoff(cutoffs.gold, 'gold'),
+        silver: parseCutoff(cutoffs.silver, 'silver'),
+        bronze: parseCutoff(cutoffs.bronze, 'bronze'),
+      },
+    });
+  }
+
+  api.post('/scoreboard/preview', handle((req, res) => {
+    const scoreboard = scoreboardFromBody(req.body || {});
+    const medals = { gold: 0, silver: 0, bronze: 0 };
+    for (const row of scoreboard.rows) if (row.medal) medals[row.medal] += 1;
+    res.json({
+      html: scoreboardHtml(scoreboard),
+      contestants: scoreboard.rows.length,
+      problems: scoreboard.problems,
+      medals,
+    });
+  }));
+
+  api.post('/scoreboard/pdf', heavyLimiter, handle(async (req, res) => {
+    const scoreboard = scoreboardFromBody(req.body || {});
+    const bytes = await renderScoreboardPdf(scoreboard, await getBrowser());
+    res.type('application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="scoreboard.pdf"');
+    res.send(Buffer.from(bytes));
+  }));
+
+  // One continuous image, as tall as the table needs — never paged or scaled down to fit
+  api.post('/scoreboard/png', heavyLimiter, handle(async (req, res) => {
+    const scoreboard = scoreboardFromBody(req.body || {});
+    const png = await renderScoreboardPng(scoreboard, await getBrowser());
+    res.type('image/png');
+    res.setHeader('Content-Disposition', 'attachment; filename="scoreboard.png"');
+    res.send(png);
+  }));
+
   // ---------- ZIP export / import ----------
 
   // Export every problem as a single ZIP file
@@ -992,15 +1049,6 @@ export function createStudioApp(options: StudioAppOptions = {}): express.Express
         ? (listKnownFolders() ?? new Set<string>())
         : new Set(listProblemDirs().map((d) => path.basename(d)));
       const parsed = parseProblemsZip(file.buffer, mode, existing);
-
-      // Enforce MAX_PROBLEMS up front for the no-database path too (importParsedProblems
-      // re-checks against the real count when a database is configured).
-      if (!isDbConfigured() && existing.size + parsed.length > MAX_PROBLEMS) {
-        throw new ProblemError(
-          `Cannot import — this would put the total number of problems over the maximum of ${MAX_PROBLEMS} (currently ${existing.size}, adding ${parsed.length})`,
-          { hint: `A maximum of ${MAX_PROBLEMS} problems is allowed. Please delete some problems you don't need before importing.` },
-        );
-      }
 
       await importParsedProblems(parsed, mode);
       const imported = parsed.map((p) => p.folder);

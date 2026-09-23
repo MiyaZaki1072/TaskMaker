@@ -38,6 +38,7 @@ WORKDIR /app
 # fonts-thai-tlwg     - Thai glyphs. Without these, Chromium renders every Thai character in the
 #                       PDF as an empty box, which is the entire content of this app.
 # fonts-liberation    - Latin metric-compatible fonts, for mixed Thai/English problems
+# fonts-noto-color-emoji - the scoreboard's 🍦 band; without it the emoji prints as an empty box
 # ca-certificates     - TLS roots, so a managed Postgres over sslmode=require still verifies
 # dumb-init           - PID 1 that reaps zombies and forwards SIGTERM; Chromium leaves child
 #                       processes behind on every export, and node as PID 1 does not reap them
@@ -46,6 +47,7 @@ RUN apt-get update \
       chromium \
       fonts-thai-tlwg \
       fonts-liberation \
+      fonts-noto-color-emoji \
       ca-certificates \
       dumb-init \
  && rm -rf /var/lib/apt/lists/*

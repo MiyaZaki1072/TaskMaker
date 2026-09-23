@@ -25,8 +25,11 @@ interface TocEntry extends ExportResult {
   pageCount: number;
 }
 
-/** A small server for the table-of-contents page, so it can load fonts from assets/ the same way the problem pages do */
-async function startTocServer(getHtml: () => string): Promise<{ url: string; close: () => Promise<void> }> {
+/**
+ * A throwaway local server for one generated page (booklet cover, table of contents, scoreboard), so
+ * Chromium can load the fonts from assets/ the same way the problem pages do
+ */
+export async function startPageServer(getHtml: () => string): Promise<{ url: string; close: () => Promise<void> }> {
   const app = express();
   app.get('/', (_req, res) => {
     res.type('html').send(getHtml());
@@ -145,7 +148,7 @@ function tocHtml(entries: TocEntry[], title: string): string {
 }
 
 async function renderCover(browser: Browser, html: string): Promise<Uint8Array> {
-  const server = await startTocServer(() => html);
+  const server = await startPageServer(() => html);
   const page = await browser.newPage();
   try {
     await page.goto(server.url, { waitUntil: 'load' });
@@ -162,7 +165,7 @@ async function renderCover(browser: Browser, html: string): Promise<Uint8Array> 
 }
 
 async function renderToc(browser: Browser, html: string): Promise<Uint8Array> {
-  const server = await startTocServer(() => html);
+  const server = await startPageServer(() => html);
   const page = await browser.newPage();
   try {
     await page.goto(server.url, { waitUntil: 'load' });

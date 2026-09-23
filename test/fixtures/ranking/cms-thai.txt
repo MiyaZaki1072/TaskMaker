@@ -1,0 +1,6 @@
+            Username                           User          tree    path_count        mirror   Global
+                 u01                     สมชาย ใจดี           100          37.5             0    137.5 
+                 u02                  Alice Example           100           100           40*      240 
+                 u03 นางสาว ชื่อยาวมากเกินความกว้างคอลัมน์ นามสกุลยาว           100            80            20      200 
+                 u04                            Bob             0             0             0        0 
+                 u05                      Carol Tie           100          37.5             0    137.5 

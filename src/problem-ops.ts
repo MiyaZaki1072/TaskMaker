@@ -8,9 +8,6 @@ import { ProblemError } from './errors.js';
 import { writeFileAtomic } from './fs-atomic.js';
 import { BLANK_TEMPLATE_FILE, listProblemDirs, PROBLEMS_DIR, renderProblem, toDisplayPath } from './render.js';
 
-/** Maximum number of problems allowed in the system */
-export const MAX_PROBLEMS = 15;
-
 /** Strips characters that are illegal in folder names on Windows/macOS/Linux */
 export function toFolderName(name: string): string {
   const cleaned = name
@@ -64,17 +61,10 @@ export function materializeProblemFiles(folder: string, content: string): Create
  * created. This is the whole story when there is no database configured (plain local files, no
  * cross-instance concerns); when a database is configured, storage-db.ts's createProblemInStorage
  * uses buildBlankProblemYaml + materializeProblemFiles instead, so the database — not a
- * filesystem existence check — decides uniqueness and the problem-count limit.
+ * filesystem existence check — decides uniqueness.
  */
 export function createProblem(rawName: string): CreatedProblem {
   const { folder, content } = buildBlankProblemYaml(rawName);
-
-  const currentDirs = listProblemDirs();
-  if (currentDirs.length >= MAX_PROBLEMS) {
-    throw new ProblemError(`The maximum number of problems is ${MAX_PROBLEMS}`, {
-      hint: `There are currently ${currentDirs.length} problems. To create a new one, please delete a problem you no longer need first.`,
-    });
-  }
 
   const dir = path.join(PROBLEMS_DIR, folder);
   if (fs.existsSync(dir)) {

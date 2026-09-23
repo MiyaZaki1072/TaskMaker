@@ -38,6 +38,9 @@ jobs:
       - name: Text rendering regression tests
         run: npm run test:text
 
+      - name: Scoreboard (CMS ranking) tests
+        run: npm run test:ranking
+
       - name: ZIP export/import tests
         run: npm run verify:zip
 
@@ -85,6 +88,9 @@ jobs:
           docker run --rm problem-studio:ci \
             sh -c 'ls /usr/share/fonts/truetype/tlwg/*.ttf >/dev/null 2>&1' \
             || { echo "no Thai font in the image — PDFs would render Thai as empty boxes"; exit 1; }
+          docker run --rm problem-studio:ci \
+            sh -c 'ls /usr/share/fonts/truetype/noto/NotoColorEmoji.ttf >/dev/null 2>&1' \
+            || { echo "no emoji font in the image — the scoreboard's 🍦 would print as an empty box"; exit 1; }
 
       # The server must refuse to start unconfigured rather than serving an open studio.
       - name: Assert it refuses to start without a password

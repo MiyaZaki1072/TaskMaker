@@ -27,6 +27,7 @@ export function dashboardPage(): string {
       <button id="btn-booklet" class="btn">Combine Into One Booklet</button>
       <button id="btn-export-zip" class="btn" title="Download every problem including assets as a ZIP file">📦 Export ZIP</button>
       <button id="btn-import-zip" class="btn" title="Import problems from a ZIP file">📥 Import ZIP</button>
+      <a class="btn" href="/scoreboard" title="Make a scoreboard PDF from a CMS ranking download">🏆 Scoreboard</a>
       <button id="open-new" class="btn btn-primary">+ New Problem</button>
     </div>
   </header>
@@ -47,7 +48,7 @@ export function dashboardPage(): string {
     <form id="new-form" method="dialog">
       <div class="modal-body">
         <h2>New Problem</h2>
-        <p class="hint">Name the problem, e.g. "PrePosn2_Tree" — the system allows a maximum of 15 problems</p>
+        <p class="hint">Name the problem, e.g. "PrePosn2_Tree"</p>
         <input id="new-name" type="text" placeholder="e.g. PrePosn2_Tree" autocomplete="off">
         <div id="new-error" class="modal-error"></div>
         <div class="modal-actions">
@@ -61,7 +62,7 @@ export function dashboardPage(): string {
   <dialog id="import-dialog" class="modal">
     <div class="modal-body">
       <h2>Import Problems from a ZIP File</h2>
-      <p class="hint">Choose or drag a previously-exported <code>.zip</code> file here — the system will pull in the problems and images automatically (maximum 15 problems)</p>
+      <p class="hint">Choose or drag a previously-exported <code>.zip</code> file here — the system will pull in the problems and images automatically</p>
 
       <div class="import-mode-options" style="margin: 12px 0 16px; padding: 12px; border: 1px solid var(--line-soft); border-radius: 8px; font-size: 0.9rem;">
         <div style="font-weight: 600; margin-bottom: 8px;">When a problem name already exists:</div>
@@ -285,6 +286,64 @@ export function editorPage(info: EditorPageInfo): string {
 
   <div id="toast-wrap" class="toast-wrap"></div>
   <script src="/studio-assets/editor.js" defer></script>
+</body>
+</html>`;
+}
+
+export function scoreboardPage(): string {
+  return `${shellHead('Scoreboard — Problem Maker')}
+<body class="studio">
+  <div class="editor-shell">
+    <header class="topbar editor-topbar">
+      <div>
+        <a href="/">← Back to main page</a>
+        <div style="font-weight:700;font-size:1.05rem">🏆 Scoreboard</div>
+      </div>
+      <div class="topbar-actions">
+        <div id="sb-status" class="editor-status"><span class="dot"></span><span id="sb-status-text">Upload a ranking to begin</span></div>
+        <button id="sb-png" class="btn" disabled title="The whole scoreboard as one tall image — never split into pages">Download PNG</button>
+        <button id="sb-pdf" class="btn btn-primary" disabled>Download PDF</button>
+      </div>
+    </header>
+
+    <div id="sb-error" class="editor-error-banner" hidden></div>
+
+    <div class="editor-body">
+      <div class="editor-pane">
+        <div class="editor-form">
+          <fieldset>
+            <legend>CMS Ranking</legend>
+            <p class="field-hint">In CMS admin: contest → Ranking → download as <code>txt</code> or <code>csv</code>, then drop the file here</p>
+            <div id="sb-drop" class="asset-drop">Drag ranking.txt / ranking.csv here, or click to choose it</div>
+            <input id="sb-file" type="file" accept=".txt,.csv,text/plain,text/csv" hidden>
+            <label>…or paste its contents
+              <textarea id="sb-ranking" rows="6" spellcheck="false" wrap="off" placeholder="            Username                           User          test1   Global"></textarea>
+            </label>
+          </fieldset>
+          <fieldset>
+            <legend>Contest Details</legend>
+            <label>Contest name<input type="text" id="sb-contest" autocomplete="off" placeholder='e.g. "การแข่งขัน สอวน. คอมพิวเตอร์ ครั้งที่ 1"'></label>
+            <label>Authors — one per line<textarea id="sb-authors" rows="3"></textarea></label>
+          </fieldset>
+          <fieldset>
+            <legend>Medals — minimum total score (leave blank for none)</legend>
+            <div class="sb-cutoffs">
+              <label><span class="sb-swatch sb-gold"></span>Gold ≥<input type="number" id="sb-gold" min="0" step="any" inputmode="decimal"></label>
+              <label><span class="sb-swatch sb-silver"></span>Silver ≥<input type="number" id="sb-silver" min="0" step="any" inputmode="decimal"></label>
+              <label><span class="sb-swatch sb-bronze"></span>Bronze ≥<input type="number" id="sb-bronze" min="0" step="any" inputmode="decimal"></label>
+            </div>
+            <p id="sb-summary" class="field-hint"></p>
+          </fieldset>
+        </div>
+      </div>
+      <div class="preview-pane">
+        <iframe id="sb-preview" title="Scoreboard preview" sandbox="allow-same-origin"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-wrap" class="toast-wrap"></div>
+  <script src="/studio-assets/scoreboard.js" defer></script>
 </body>
 </html>`;
 }

@@ -77,7 +77,6 @@
   }
 
   const sectionLabel = document.getElementById('section-problem-label');
-  const openNewBtn = document.getElementById('open-new');
 
   /** Shows a banner when storage could not be read, so an empty list is never mistaken for an empty project */
   function renderStorageWarning(message) {
@@ -103,20 +102,9 @@
       const data = await api('/api/problems');
       grid.innerHTML = '';
       const count = data.count ?? data.problems.length;
-      const max = data.max || 15;
 
       if (sectionLabel) {
-        sectionLabel.textContent = 'All Problems (' + count + '/' + max + ')';
-      }
-
-      if (openNewBtn) {
-        if (count >= max) {
-          openNewBtn.disabled = true;
-          openNewBtn.title = 'The maximum number of problems has been reached (' + max + ')';
-        } else {
-          openNewBtn.disabled = false;
-          openNewBtn.title = '';
-        }
+        sectionLabel.textContent = 'All Problems (' + count + ')';
       }
 
       renderStorageWarning(data.warning);

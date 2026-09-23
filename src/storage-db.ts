@@ -4,8 +4,7 @@
  *
  * The database is what keeps concurrent edits honest:
  *
- *   - Uniqueness and the MAX_PROBLEMS cap are enforced by the database in one atomic statement
- *     (a real UNIQUE constraint + an advisory lock around the count check), not by a filesystem
+ *   - Uniqueness is enforced by the database (a real UNIQUE constraint), not by a filesystem
  *     existence check that two requests could both pass.
  *   - A save is one `UPDATE … RETURNING version`. The returned version tells us both the new
  *     state and whether we just overwrote someone else's newer save — no separate etag, no
@@ -23,7 +22,7 @@
  *
  * Image bytes are stored as base64 TEXT, not bytea, so a backup is a plain-text SQL dump that
  * restores with no type conversion step to get wrong. The cost is ~33% more bytes on the wire —
- * a non-issue at this project's scale (at most 15 problems, a few small images each).
+ * a non-issue at this project's scale (a contest's worth of problems, a few small images each).
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -33,7 +32,6 @@ import { contentVersion, writeFileAtomic } from './fs-atomic.js';
 import {
   buildBlankProblemYaml,
   createProblem as createProblemLocal,
-  MAX_PROBLEMS,
   materializeProblemFiles,
   type CreatedProblem,
 } from './problem-ops.js';
@@ -429,12 +427,9 @@ export async function ensureAllAssetsLocal(folder: string): Promise<void> {
 // ---------- mutations ----------
 
 /**
- * Creates a problem. When a database is configured, uniqueness and the MAX_PROBLEMS cap are
- * enforced by the database in one atomic statement: `pg_advisory_xact_lock` inside a CTE
- * serializes concurrent creates for the duration of the statement (the lock is transaction-scoped
- * and this is one implicit transaction), so the count check and the insert can never race each
- * other the way a check-then-insert in application code could. A real UNIQUE constraint is
- * still the backstop for the name itself.
+ * Creates a problem. When a database is configured, the table's UNIQUE constraint on the folder
+ * decides uniqueness, so two instances creating the same name at once cannot both succeed the way
+ * a check-then-insert in application code could.
  */
 export async function createProblemInStorage(rawName: string): Promise<CreatedProblem> {
   if (!isDbConfigured()) return createProblemLocal(rawName);
@@ -445,10 +440,7 @@ export async function createProblemInStorage(rawName: string): Promise<CreatedPr
   let rows: Array<{ version: number }>;
   try {
     rows = (await sql()`
-      WITH lock AS (SELECT pg_advisory_xact_lock(hashtext('problems:create'))),
-           cnt  AS (SELECT count(*)::int AS n FROM problems)
-      INSERT INTO problems (folder, yaml)
-      SELECT ${folder}, ${content} FROM cnt, lock WHERE cnt.n < ${MAX_PROBLEMS}
+      INSERT INTO problems (folder, yaml) VALUES (${folder}, ${content})
       RETURNING version
     `) as unknown as Array<{ version: number }>;
   } catch (err) {
@@ -456,19 +448,6 @@ export async function createProblemInStorage(rawName: string): Promise<CreatedPr
       throw new StorageConflictError(`A problem named "${folder}" already exists`);
     }
     throw err;
-  }
-
-  if (rows.length === 0) {
-    // The statement ran but inserted nothing: the WHERE cnt.n < MAX_PROBLEMS guard blocked it
-    // (the folder-name case is normally caught as a unique_violation above instead). Re-check so
-    // the message reflects what actually happened rather than assuming.
-    const n = await countProblems();
-    if (n >= MAX_PROBLEMS) {
-      throw new ProblemError(`The maximum number of problems is ${MAX_PROBLEMS}`, {
-        hint: `There are currently ${n} problems. To create a new one, please delete a problem you no longer need first.`,
-      });
-    }
-    throw new StorageConflictError(`A problem named "${folder}" already exists`);
   }
 
   const created = materializeProblemFiles(folder, content);
@@ -623,8 +602,8 @@ interface ParsedZipProblem {
 /**
  * Persists a whole parsed ZIP import (studio-server.ts does the archive parsing and name-collision
  * handling, unchanged from before — this only decides where the result is written). Local-only
- * mode writes files directly; database mode enforces the MAX_PROBLEMS cap against the database's
- * real count and pushes every problem plus its assets in one atomic transaction.
+ * mode writes files directly; database mode pushes every problem plus its assets in one atomic
+ * transaction.
  */
 export async function importParsedProblems(problems: ParsedZipProblem[], mode: 'add' | 'overwrite'): Promise<void> {
   // Shared by both branches: in 'overwrite' mode the old folder is wiped before rewriting, so an
@@ -655,14 +634,6 @@ export async function importParsedProblems(problems: ParsedZipProblem[], mode: '
     for (const p of problems) {
       await sql()`DELETE FROM problems WHERE folder = ${p.folder}`;
     }
-  }
-
-  const existingCount = await countProblems();
-  if (existingCount + problems.length > MAX_PROBLEMS) {
-    throw new ProblemError(
-      `Cannot import — this would put the total number of problems over the maximum of ${MAX_PROBLEMS} (currently ${existingCount}, adding ${problems.length})`,
-      { hint: `A maximum of ${MAX_PROBLEMS} problems is allowed. Please delete some problems you don't need before importing.` },
-    );
   }
 
   const queries: Array<PendingQuery<unknown>> = [];

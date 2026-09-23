@@ -1,10 +1,10 @@
 import http from 'node:http';
 import AdmZip from 'adm-zip';
 import { createStudioApp } from '../src/studio-server.js';
-import { MAX_PROBLEMS, sanitizeSvg } from '../src/problem-ops.js';
+import { sanitizeSvg } from '../src/problem-ops.js';
 
 async function runSecurityTests() {
-  console.log('--- Starting security, storage, and 15-problem-limit tests ---\n');
+  console.log('--- Starting security and storage tests ---\n');
 
   // 1. Test SVG sanitization (stored XSS)
   console.log('[Test 1] SVG sanitization blocks stored XSS');
@@ -22,15 +22,8 @@ async function runSecurityTests() {
   }
   console.log('-> [PASS] <script>, onload, and javascript: were all fully stripped\n');
 
-  // 2. Test that MAX_PROBLEMS is set to 15
-  console.log(`[Test 2] MAX_PROBLEMS is set to ${MAX_PROBLEMS}`);
-  if (MAX_PROBLEMS !== 15) {
-    throw new Error(`MAX_PROBLEMS should be 15 but is ${MAX_PROBLEMS}`);
-  }
-  console.log('-> [PASS] The maximum is 15 problems\n');
-
-  // 3. Test authentication when STUDIO_PASSWORD is set
-  console.log('[Test 3] Verify STUDIO_PASSWORD authentication (login page, sessions, CSRF)');
+  // 2. Test authentication when STUDIO_PASSWORD is set
+  console.log('[Test 2] Verify STUDIO_PASSWORD authentication (login page, sessions, CSRF)');
   process.env.STUDIO_PASSWORD = 'supersecret_test_password';
 
   const app = createStudioApp();
@@ -162,8 +155,8 @@ async function runSecurityTests() {
 
     console.log('-> [PASS] Login, sessions, cross-site protection and the health probe all behave\n');
 
-    // 4. Test security headers
-    console.log('[Test 4] Verify security headers (X-Frame-Options, X-Content-Type-Options)');
+    // 3. Test security headers
+    console.log('[Test 3] Verify security headers (X-Frame-Options, X-Content-Type-Options)');
     const xFrame = resAuth.headers.get('x-frame-options');
     const xContentType = resAuth.headers.get('x-content-type-options');
     console.log(`- X-Frame-Options: ${xFrame}`);
@@ -173,8 +166,8 @@ async function runSecurityTests() {
     }
     console.log('-> [PASS] All security headers are set correctly\n');
 
-    // 5. Test zip bomb protection
-    console.log('[Test 5] Verify zip bomb protection (> 100MB)');
+    // 4. Test zip bomb protection
+    console.log('[Test 4] Verify zip bomb protection (> 100MB)');
     const bigZip = new AdmZip();
     const dummy = Buffer.alloc(1024, 'A');
     for (let i = 0; i < 105; i++) {
@@ -200,8 +193,8 @@ async function runSecurityTests() {
       throw new Error('Zip bomb protection failed');
     }
 
-    // 6. Test rate limiting for heavy operations
-    console.log('[Test 6] Verify rate limiting (heavy limiter)');
+    // 5. Test rate limiting for heavy operations
+    console.log('[Test 5] Verify rate limiting (heavy limiter)');
     let blocked = false;
     for (let i = 0; i < 15; i++) {
       const resRate = await fetch(`${baseUrl}/api/booklet`, {
@@ -220,7 +213,7 @@ async function runSecurityTests() {
     console.log('-> [PASS] Rate limiting works correctly\n');
 
     console.log('======================================================');
-    console.log('  🎉 Summary: all 6/6 security tests passed!');
+    console.log('  🎉 Summary: all 5/5 security tests passed!');
     console.log('======================================================\n');
   } finally {
     delete process.env.STUDIO_PASSWORD;

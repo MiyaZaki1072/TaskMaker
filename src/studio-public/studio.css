@@ -647,6 +647,55 @@ dialog.modal.modal-wide {
   border-color: var(--accent);
 }
 
+/* ---------- Scoreboard page ---------- */
+.sb-cutoffs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.sb-cutoffs label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 0;
+}
+
+.editor-form .sb-cutoffs input[type="number"] {
+  width: 100%;
+  font: inherit;
+  font-size: 0.92rem;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--input-bg);
+  color: var(--ink);
+}
+
+/* The same three medal colours the printed scoreboard uses for its bands and row edges */
+.sb-swatch {
+  display: inline-block;
+  width: 0.9em;
+  height: 0.9em;
+  border-radius: 3px;
+}
+
+.sb-swatch.sb-gold { background: #d4a72c; }
+.sb-swatch.sb-silver { background: #9aa4b2; }
+.sb-swatch.sb-bronze { background: #b8743f; }
+
+/* A CMS ranking is column-aligned text: scroll it sideways rather than wrap it into noise */
+.editor-form #sb-ranking {
+  white-space: pre;
+  overflow-x: auto;
+  font-size: 0.75rem;
+}
+
+#sb-summary:empty {
+  display: none;
+}
+
 /* subtask / example repeatable groups */
 .form-group-item {
   position: relative;

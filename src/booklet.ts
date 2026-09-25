@@ -53,14 +53,56 @@ export async function startPageServer(getHtml: () => string): Promise<{ url: str
   };
 }
 
+/**
+ * Turns the free-text rules into paragraphs and lists: lines starting with "1." / "1)" become a numbered
+ * list and lines starting with "-" / "•" / "*" a bulleted one, so a wrapped item lines up under its own text
+ */
+function rulesToHtml(rules: string): string {
+  const blocks: string[] = [];
+  let listTag: 'ol' | 'ul' | null = null;
+  let items: string[] = [];
+
+  const flushList = () => {
+    if (listTag) blocks.push(`<${listTag}>${items.join('')}</${listTag}>`);
+    listTag = null;
+    items = [];
+  };
+
+  for (const rawLine of rules.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    const numbered = /^(\d+)[.)]\s+(.+)$/.exec(line);
+    const bullet = /^[-•*]\s+(.+)$/.exec(line);
+
+    if (numbered) {
+      if (listTag !== 'ol') flushList();
+      listTag = 'ol';
+      items.push(`<li value="${Number(numbered[1])}">${escapeHtml(numbered[2] ?? '')}</li>`);
+    } else if (bullet) {
+      if (listTag !== 'ul') flushList();
+      listTag = 'ul';
+      items.push(`<li>${escapeHtml(bullet[1] ?? '')}</li>`);
+    } else {
+      flushList();
+      if (line) blocks.push(`<p>${escapeHtml(line)}</p>`);
+    }
+  }
+  flushList();
+  return blocks.join('');
+}
+
 function coverHtml(options: BookletOptions): string {
   const logoHtml = options.logo ? `<img src="${escapeHtml(options.logo)}" alt="Logo" class="cover-logo" />` : '';
-  const rulesHtml = options.rules ? `<div class="cover-rules-box"><div class="cover-rules-title">คำชี้แจง / กติกา</div><div class="cover-rules-content">${escapeHtml(options.rules).replace(/\n/g, '<br>')}</div></div>` : '';
+  const rulesHtml = options.rules
+    ? `<section class="cover-rules"><h2 class="cover-rules-title">คำชี้แจง / กติกา</h2><div class="cover-rules-content">${rulesToHtml(options.rules)}</div></section>`
+    : '';
   const authorsList = options.authors
     ? options.authors.split(/\r?\n/).map((s) => s.trim()).filter(Boolean)
     : [];
   const authorsHtml = authorsList.length > 0
-    ? `<div class="cover-authors">${authorsList.map((a) => `<div class="cover-author-line">${escapeHtml(a)}</div>`).join('')}</div>`
+    ? `<div class="cover-authors">
+        <div class="cover-authors-label">ผู้ออกโจทย์</div>
+        <div class="cover-author-list">${authorsList.map((a) => `<span class="cover-author">${escapeHtml(a)}</span>`).join('')}</div>
+      </div>`
     : '';
 
   return `<!doctype html>
@@ -70,15 +112,31 @@ function coverHtml(options: BookletOptions): string {
 <title>${escapeHtml(options.contestName || 'Cover')}</title>
 <link rel="stylesheet" href="/assets/style.css">
 <style>
-  .cover-container { display: flex; flex-direction: column; min-height: 80vh; justify-content: space-between; padding: 20px 10px; }
-  .cover-header { text-align: center; margin-top: 8vh; }
+  .cover-container { display: flex; flex-direction: column; min-height: 240mm; padding: 0 6mm; }
+  .cover-header { text-align: center; margin-top: 30mm; }
   .cover-logo { max-height: 120px; object-fit: contain; margin-bottom: 28px; }
-  .cover-title { font-size: 2.4rem; color: var(--accent); margin: 0 0 20px; font-weight: 700; }
-  .cover-authors { font-size: 1.1rem; color: var(--ink-soft); line-height: 1.35; margin-top: 10px; }
-  .cover-author-line { margin: 1px 0; font-weight: 500; }
-  .cover-rules-box { border: 2px solid var(--accent); border-radius: 8px; padding: 16px 20px; margin-top: auto; background-color: rgba(0,0,0,0.02); }
-  .cover-rules-title { font-weight: bold; font-size: 1.1rem; color: var(--accent); margin-bottom: 8px; }
-  .cover-rules-content { font-size: 0.95rem; line-height: 1.6; color: var(--ink); }
+  .cover-title { font-size: 2.4rem; line-height: 1.3; color: var(--accent); margin: 0; font-weight: 700; }
+  .cover-title::after { content: ''; display: block; width: 64px; height: 3px; margin: 18px auto 0; background: var(--accent); border-radius: 2px; }
+
+  .cover-authors { margin-top: 26px; }
+  .cover-authors-label { font-size: 0.95rem; font-weight: 700; color: var(--ink-soft); letter-spacing: 0.04em; margin-bottom: 4px; }
+  /* One centered line of names that wraps when it runs out of room. The dots sit in the gap (absolutely
+     positioned, so they never change where a line breaks) and the script below hides the dot in front of
+     the first name on each line. */
+  .cover-author-list { display: flex; flex-wrap: wrap; justify-content: center; column-gap: 1.6em; row-gap: 2px; font-size: 1.15rem; line-height: 1.5; color: var(--ink); }
+  .cover-author { position: relative; white-space: nowrap; }
+  .cover-author + .cover-author::before { content: '\\00B7'; position: absolute; left: -0.8em; transform: translateX(-50%); color: var(--accent); font-weight: 700; }
+  .cover-author.line-start::before { display: none; }
+
+  .cover-rules { margin-top: auto; padding: 14px 22px 16px; background: var(--surface); border-left: 4px solid var(--accent); border-radius: 0 6px 6px 0; break-inside: avoid; page-break-inside: avoid; }
+  .cover-rules-title { font-size: 1.15rem; line-height: 1.4; font-weight: 700; color: var(--accent); margin: 0 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  .cover-rules-content { font-size: 1rem; line-height: 1.55; color: var(--ink); }
+  .cover-rules-content p { margin: 0 0 4px; }
+  .cover-rules-content ol, .cover-rules-content ul { margin: 2px 0 6px; padding-left: 1.7em; }
+  .cover-rules-content li { margin: 2px 0; padding-left: 0.2em; }
+  .cover-rules-content ol li::marker { font-weight: 700; color: var(--accent); }
+  .cover-rules-content ul li::marker { color: var(--accent); }
+  .cover-rules-content > :last-child { margin-bottom: 0; }
 </style>
 </head>
 <body>
@@ -95,6 +153,12 @@ function coverHtml(options: BookletOptions): string {
 <script>
 (async () => {
   try { await document.fonts.ready; } catch (err) { /* older browser without document.fonts */ }
+  // Hide the separator dot in front of whichever name starts a wrapped line
+  let prevTop = null;
+  for (const el of document.querySelectorAll('.cover-author')) {
+    if (prevTop !== null && el.offsetTop > prevTop) el.classList.add('line-start');
+    prevTop = el.offsetTop;
+  }
   document.documentElement.setAttribute('data-render-ready', '1');
 })();
 </script>

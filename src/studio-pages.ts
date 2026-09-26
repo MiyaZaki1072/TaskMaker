@@ -55,6 +55,7 @@ export function dashboardPage(): string {
       <button id="btn-export-zip" class="btn" title="Download every problem including assets as a ZIP file">📦 Export ZIP</button>
       <button id="btn-import-zip" class="btn" title="Import problems from a ZIP file">📥 Import ZIP</button>
       <a class="btn" href="/scoreboard" title="Make a scoreboard PDF from a CMS ranking download">🏆 Scoreboard</a>
+      <a class="btn" href="/library" title="Images (like the contest logo) and text (like the rules) shared by every problem">📚 Library</a>
       <button id="open-new" class="btn btn-primary">+ New Problem</button>
     </div>
   </header>
@@ -207,6 +208,7 @@ export function editorPage(info: EditorPageInfo): string {
           </div>
         </div>
           <button id="btn-assets" class="btn">Manage Images</button>
+        <button id="btn-snippets" class="btn" title="Copy saved text (like the contest rules) from the library">📋 Snippets</button>
         <a class="btn" target="_blank" rel="noopener" href="/preview/${encodeURIComponent(info.folder)}">Open Preview in New Tab</a>
         <button id="btn-pdf" class="btn">Export PDF</button>
         <a class="btn" href="/api/problems/${encodeURIComponent(info.folder)}/export-zip" title="Download this problem with its images as a ZIP file">📦 Export ZIP</a>
@@ -227,7 +229,7 @@ export function editorPage(info: EditorPageInfo): string {
             <label>Problem name (name)<input type="text" id="f-name" autocomplete="off"></label>
             <label>Logo (logo) — optional
               <div class="input-with-btn">
-                <input type="text" id="f-logo" placeholder="e.g. assets/logo.png" autocomplete="off">
+                <input type="text" id="f-logo" placeholder="e.g. assets/logo.png, or global/logo.png from the library" autocomplete="off">
                 <button type="button" class="btn btn-sm btn-pick-img" data-target="f-logo">🖼️ Choose Image</button>
               </div>
             </label>
@@ -239,7 +241,7 @@ export function editorPage(info: EditorPageInfo): string {
               <label for="f-story">Story (story)</label>
               <button type="button" class="btn btn-sm btn-insert-img" data-target="f-story">🖼️ Insert Image</button>
             </div>
-            <div class="field-hint">💡 <strong>How to insert an image:</strong> type <code>img</code> in the story to pick from uploaded images, or type <code>[img: assets/filename.png]</code> (you can add a caption, e.g. <code>[img: assets/filename.png | image caption]</code>, and a size in pixels or %, e.g. <code>[img: assets/filename.png | image caption | 300]</code>)</div>
+            <div class="field-hint">💡 <strong>How to insert an image:</strong> type <code>img</code> in the story to pick from uploaded images, or type <code>[img: assets/filename.png]</code> (you can add a caption, e.g. <code>[img: assets/filename.png | image caption]</code>, and a size in pixels or %, e.g. <code>[img: assets/filename.png | image caption | 300]</code>). Images shared by every problem come from the <a href="/library" target="_blank" rel="noopener">📚 Library</a>: write <code>global/</code> instead of <code>assets/</code>, e.g. <code>[img: global/logo.png]</code></div>
             <div class="field-hint">💡 <strong>Text formatting:</strong> select text and use the toolbar (or Ctrl+B / Ctrl+I / Ctrl+U) — it types codes you can also write by hand: <code>[b]</code> <code>[i]</code> <code>[u]</code> <code>[s]</code> <code>[hl]</code> <code>[sup]</code> <code>[sub]</code> <code>[big]</code> <code>[small]</code> <code>[color=red]</code> (red, blue, green, orange, gray), each closed like <code>[/b]</code> &middot; <code>[br]</code> breaks the line &middot; <code>[center]...[/center]</code> aligns &middot; these work in every field</div>
             <div class="field-hint">💡 <strong>Tables, headings, dividers</strong> (story and example explanations): <code>▦ Table</code> inserts rows like <code>| a | b |</code> — a <code>| --- | :---: |</code> row under the first makes it a header (<code>:---:</code> centres the column) &middot; <code>[h]Heading[/h]</code> on its own line &middot; a line of just <code>---</code> draws a divider</div>
             <textarea id="f-story" rows="6"></textarea>
@@ -303,11 +305,28 @@ export function editorPage(info: EditorPageInfo): string {
   <dialog id="picker-dialog" class="modal modal-wide">
     <div class="modal-body">
       <h2>Choose an Image</h2>
-      <p class="hint">Click an image to select it, or upload a new one below</p>
+      <div class="picker-tabs" role="tablist" aria-label="Where the image comes from">
+        <button type="button" class="picker-tab is-active" role="tab" aria-selected="true" data-source="problem">This problem</button>
+        <button type="button" class="picker-tab" role="tab" aria-selected="false" data-source="library">📚 Global library</button>
+      </div>
+      <p class="hint" id="picker-hint">Click an image to select it, or upload a new one below</p>
       <div id="picker-grid" class="asset-grid"></div>
       <div class="modal-actions" style="justify-content:space-between;align-items:center;">
         <button id="picker-upload" type="button" class="btn btn-sm">+ Upload New Image</button>
+        <a id="picker-library-link" class="btn btn-sm" href="/library" target="_blank" rel="noopener" hidden>Manage library ↗</a>
         <button id="picker-close" type="button" class="btn">Cancel</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="snippet-dialog" class="modal modal-wide">
+    <div class="modal-body">
+      <h2>📋 Snippets</h2>
+      <p class="hint">Saved text from the library. Click <strong>Copy</strong>, then paste it (Ctrl+V) where you want it — each problem gets its own copy, so you can still edit it here.</p>
+      <div id="snippet-list" class="snippet-list"></div>
+      <div class="modal-actions" style="justify-content:space-between;align-items:center;">
+        <a class="btn btn-sm" href="/library" target="_blank" rel="noopener">Manage snippets ↗</a>
+        <button id="snippet-close" type="button" class="btn">Close</button>
       </div>
     </div>
   </dialog>
@@ -372,6 +391,58 @@ export function scoreboardPage(): string {
 
   <div id="toast-wrap" class="toast-wrap"></div>
   <script src="${asset('/studio-assets/scoreboard.js')}" defer></script>
+</body>
+</html>`;
+}
+
+/** The global library: images and text shared by every problem (see src/library.ts) */
+export function libraryPage(): string {
+  return `${shellHead('Library — Problem Maker')}
+<body class="studio">
+  <header class="topbar">
+    <div>
+      <a href="/">← Back to main page</a>
+      <h1 class="topbar-title">📚 Library</h1>
+    </div>
+  </header>
+
+  <main class="page-body">
+    <p class="section-label">Global images</p>
+    <p class="field-hint">Images every problem can use, like the contest logo. Write <code>global/</code> and the filename wherever an image goes — <code>logo: "global/logo.png"</code> or <code>[img: global/logo.png]</code> — or pick it from the <strong>📚 Global library</strong> tab of the editor's image picker. <strong>Replace</strong> keeps the name, so every problem using the image updates at once.</p>
+    <div id="lib-drop" class="asset-drop">Drag images here, or click to choose them<br>(.png .jpg .jpeg .gif .svg .webp — up to 10MB each; a file with an existing name replaces that image)</div>
+    <input id="lib-file-input" type="file" accept="image/png,image/jpeg,image/gif,image/svg+xml,image/webp" multiple hidden>
+    <input id="lib-replace-input" type="file" hidden>
+    <div id="lib-images" class="lib-image-grid"></div>
+    <div id="lib-images-empty" class="empty-state" hidden>
+      <p>No global images yet</p>
+      <p>Upload the contest logo here once, then use <code>global/</code> + its name in any problem</p>
+    </div>
+
+    <p class="section-label">Text snippets</p>
+    <p class="field-hint">Saved text you reuse, like the contest rules or a standard note. In the editor, <strong>📋 Snippets</strong> copies one so you can paste it into any field — each problem gets its own copy, so editing a snippet here does not change problems that already use it.</p>
+    <button id="lib-new-snippet" type="button" class="btn btn-primary">+ New Snippet</button>
+    <div id="lib-snippets" class="snippet-list"></div>
+    <div id="lib-snippets-empty" class="empty-state" hidden>
+      <p>No snippets yet</p>
+      <p>Click "+ New Snippet" to save text you type often</p>
+    </div>
+  </main>
+
+  <dialog id="lib-confirm-dialog" class="modal">
+    <div class="modal-body">
+      <h2 id="lib-confirm-title">Are you sure?</h2>
+      <p class="hint" id="lib-confirm-text"></p>
+      <ul id="lib-confirm-list" class="lib-usage-list" hidden></ul>
+      <div id="lib-confirm-error" class="modal-error"></div>
+      <div class="modal-actions">
+        <button id="lib-confirm-cancel" type="button" class="btn">Cancel</button>
+        <button id="lib-confirm-ok" type="button" class="btn btn-danger">Delete</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div id="toast-wrap" class="toast-wrap"></div>
+  <script src="${asset('/studio-assets/library.js')}" defer></script>
 </body>
 </html>`;
 }

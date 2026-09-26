@@ -22,8 +22,9 @@
     "test:text": "tsx scripts/text-regression.ts",
     "test:assets": "tsx scripts/asset-regression.ts",
     "test:ranking": "tsx scripts/ranking-regression.ts",
+    "test:library": "tsx scripts/library-regression.ts",
     "typecheck": "tsc --noEmit && npm run verify:client",
-    "verify:client": "node --check src/studio-public/editor.js && node --check src/studio-public/dashboard.js && node --check src/studio-public/scoreboard.js",
+    "verify:client": "node --check src/studio-public/editor.js && node --check src/studio-public/dashboard.js && node --check src/studio-public/scoreboard.js && node --check src/studio-public/library.js",
     "start": "node build/server.js",
     "serve": "tsx scripts/serve.ts",
     "build:server": "esbuild scripts/serve.ts --bundle --platform=node --target=node18 --format=esm --packages=external --outfile=build/server.js"

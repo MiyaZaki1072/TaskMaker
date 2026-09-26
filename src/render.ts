@@ -47,6 +47,15 @@ export const PROBLEMS_DIR = process.env.PROBLEMS_DIR
 export const DIST_DIR = process.env.DIST_DIR ? path.resolve(process.env.DIST_DIR) : path.join(ROOT, 'dist');
 
 /**
+ * The global library (shared logo, rule text — see library.ts) lives next to the problems working
+ * copy: `<repo>/library` for a local checkout, `/app/.runtime/library` in the container, where it
+ * is only a cache of the database just like PROBLEMS_DIR.
+ */
+export const LIBRARY_DIR = process.env.LIBRARY_DIR
+  ? path.resolve(process.env.LIBRARY_DIR)
+  : path.join(path.dirname(PROBLEMS_DIR), 'library');
+
+/**
  * Whether PROBLEMS_DIR is a throwaway working copy that storage-db.ts's reconcile is allowed to
  * delete stale entries from. Opt-in via PROBLEMS_DIR_DISPOSABLE=1, which the container sets and
  * which verification scripts working in a scratch directory can set too.
@@ -231,9 +240,53 @@ export function setStorageAssetLookup(lookup: StorageAssetLookup): void {
   storageMayHaveAsset = lookup;
 }
 
+/**
+ * What the library holds for one image, answered synchronously: a version string (it exists; the
+ * value goes into the URL so a replaced logo is never served from a browser or CDN cache), null
+ * (it does not exist), or undefined (no opinion yet — a database-backed instance that has not
+ * loaded the list). Injected by library.ts for the same import-cycle reason as the lookup above.
+ *
+ * The default reads local disk, which is the whole truth when there is no database (the plain
+ * CLI preview and validate).
+ */
+type LibraryImageLookup = (filename: string) => string | null | undefined;
+let libraryImageVersion: LibraryImageLookup = (filename) => {
+  try {
+    return String(Math.floor(fs.statSync(path.join(LIBRARY_DIR, 'images', filename)).mtimeMs));
+  } catch {
+    return null;
+  }
+};
+
+export function setLibraryImageLookup(lookup: LibraryImageLookup): void {
+  libraryImageVersion = lookup;
+}
+
+/**
+ * Only a path that *starts* with global/ means the library — assets/global/x.png is still an
+ * ordinary image inside the problem's own assets/ folder.
+ */
+const GLOBAL_REF_RE = /^(?:\.\/)?global\/(.+)$/;
+
+function toLibraryUrl(raw: string, filename: string, ctx: RenderContext): string {
+  // A subfolder or a leading dot can never name a library image (they are rejected on upload), so
+  // do not even ask — and never let such a name reach the filesystem lookup.
+  const version = /[\\/]|^\./.test(filename) ? null : libraryImageVersion(filename);
+  if (version === null) {
+    ctx.warnings.push(
+      `Global image "${raw}" not found in the library — upload it on the 📚 Library page, ` +
+        'or check the filename (uppercase/lowercase must match exactly)',
+    );
+  }
+  const query = version ? `?v=${encodeURIComponent(version)}` : '';
+  return `/library-assets/${encodeURIComponent(filename)}${query}`;
+}
+
 /** Converts an image path from the yaml file into a URL the browser can load */
 function toAssetUrl(raw: string, problemDir: string, ctx: RenderContext, basePath: string): string {
   if (/^(https?:|data:)/i.test(raw)) return raw;
+  const globalRef = raw.replace(/\\/g, '/').match(GLOBAL_REF_RE);
+  if (globalRef) return toLibraryUrl(raw, globalRef[1]!, ctx);
   const cleaned = raw.replace(/\\/g, '/').replace(/^\.\//, '').replace(/^assets\//, '');
   const onDisk = path.join(problemDir, 'assets', cleaned);
   // This warning exists to catch a misspelled filename, so it must only fire when the image is

@@ -71,7 +71,19 @@ import {
   scoreboardHtml,
   type Scoreboard,
 } from './scoreboard.js';
-import { dashboardPage, editorPage, loginPage, scoreboardPage } from './studio-pages.js';
+import {
+  createSnippet,
+  deleteLibraryImage,
+  deleteSnippet,
+  flattenGlobalRefs,
+  libraryImageUsage,
+  listLibraryImages,
+  listSnippets,
+  saveLibraryImage,
+  serveLibraryAsset,
+  updateSnippet,
+} from './library.js';
+import { dashboardPage, editorPage, libraryPage, loginPage, scoreboardPage } from './studio-pages.js';
 import {
   clearSession,
   hasValidSession,
@@ -575,6 +587,10 @@ export function createStudioApp(options: StudioAppOptions = {}): express.Express
     res.type('html').send(scoreboardPage());
   });
 
+  app.get('/library', (_req, res) => {
+    res.type('html').send(libraryPage());
+  });
+
   app.get('/editor/:folder', async (req, res) => {
     let dir: string;
     try {
@@ -689,6 +705,10 @@ export function createStudioApp(options: StudioAppOptions = {}): express.Express
     }
   });
 
+  // `global/…` images from the shared library (see library.ts for why this asks the database for
+  // the current version on every request instead of trusting a cached file)
+  app.get('/library-assets/:name', serveLibraryAsset);
+
   // ---------- API ----------
   const api = express.Router();
   api.use(express.json({ limit: '2mb' }));
@@ -800,24 +820,27 @@ export function createStudioApp(options: StudioAppOptions = {}): express.Express
 
   const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024, files: 1 } });
 
+  /** Takes one image from the `file` field, answering a too-big or malformed upload with a readable error */
+  const acceptImageUpload = (req: Request, res: Response, next: NextFunction) => {
+    upload.single('file')(req, res, (err: unknown) => {
+      if (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        sendError(
+          res,
+          new ProblemError('File upload failed', {
+            details: [message],
+            hint: 'The file may be larger than 10MB or was sent in an unexpected format',
+          }),
+        );
+        return;
+      }
+      next();
+    });
+  };
+
   api.post(
     '/problems/:folder/assets',
-    (req: Request, res: Response, next: NextFunction) => {
-      upload.single('file')(req, res, (err: unknown) => {
-        if (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          sendError(
-            res,
-            new ProblemError('File upload failed', {
-              details: [message],
-              hint: 'The file may be larger than 10MB or was sent in an unexpected format',
-            }),
-          );
-          return;
-        }
-        next();
-      });
-    },
+    acceptImageUpload,
     handle(async (req, res) => {
       const file = req.file;
       if (!file) {
@@ -986,7 +1009,78 @@ export function createStudioApp(options: StudioAppOptions = {}): express.Express
     res.send(png);
   }));
 
+  // ---------- Global library (shared images + text snippets, see library.ts) ----------
+
+  api.get('/library', handle(async (_req, res) => {
+    const [images, snippets] = await Promise.all([listLibraryImages(), listSnippets()]);
+    res.json({ images, snippets });
+  }));
+
+  // Same name as an existing image = replace it, which is how the shared logo gets updated everywhere
+  api.post(
+    '/library/images',
+    acceptImageUpload,
+    handle(async (req, res) => {
+      const file = req.file;
+      if (!file) {
+        throw new ProblemError('No file was uploaded', { hint: 'Select an image file first, then try again' });
+      }
+      const image = await saveLibraryImage(file.originalname, file.buffer);
+      res.status(201).json({ image });
+    }),
+  );
+
+  // Asked right before a delete, so the confirmation can name every problem that would lose the image
+  api.get('/library/images/:name/usage', handle(async (req, res) => {
+    res.json({ folders: await libraryImageUsage(paramStr(req.params.name)) });
+  }));
+
+  api.delete('/library/images/:name', handle(async (req, res) => {
+    await deleteLibraryImage(paramStr(req.params.name));
+    res.json({ ok: true });
+  }));
+
+  api.post('/library/snippets', handle(async (req, res) => {
+    res.status(201).json({ snippet: await createSnippet(req.body) });
+  }));
+
+  api.put('/library/snippets/:name', handle(async (req, res) => {
+    res.json({ snippet: await updateSnippet(paramStr(req.params.name), req.body) });
+  }));
+
+  api.delete('/library/snippets/:name', handle(async (req, res) => {
+    await deleteSnippet(paramStr(req.params.name));
+    res.json({ ok: true });
+  }));
+
   // ---------- ZIP export / import ----------
+
+  /**
+   * Adds one problem to an export ZIP under `folderName/`. Live `global/…` references are turned
+   * into ordinary images inside the problem's own assets/ (see flattenGlobalRefs), so the package
+   * is complete wherever it is imported. The studio's copy of the problem is not touched.
+   */
+  async function addProblemToZip(zip: AdmZip, dir: string, folderName: string): Promise<void> {
+    // addLocalFolder reads straight off local disk, and images are only fetched into the working
+    // copy when something asks for them — hydrate first so the ZIP is never a silent partial
+    // backup (see ensureAllAssetsLocal).
+    await ensureAllAssetsLocal(folderName);
+    const yaml = fs.readFileSync(path.join(dir, 'problem.yaml'), 'utf8');
+    const localAssets = listProblemAssets(dir).map((asset) => asset.name);
+    const flattened = await flattenGlobalRefs(yaml, localAssets);
+    if (flattened.files.length === 0) {
+      zip.addLocalFolder(dir, folderName);
+      return;
+    }
+    // adm-zip hands the filter the zip-side path joined with the OS separator ("Task\problem.yaml"
+    // on Windows), so compare it normalized
+    const originalYaml = `${folderName}/problem.yaml`;
+    zip.addLocalFolder(dir, folderName, (entryPath: string) => entryPath.split(/[\\/]/).join('/') !== originalYaml);
+    zip.addFile(`${folderName}/problem.yaml`, Buffer.from(flattened.yaml, 'utf8'));
+    for (const file of flattened.files) {
+      zip.addFile(`${folderName}/assets/${file.filename}`, file.data);
+    }
+  }
 
   // Export every problem as a single ZIP file
   api.get('/export-zip', handle(async (_req, res) => {
@@ -996,12 +1090,7 @@ export function createStudioApp(options: StudioAppOptions = {}): express.Express
     }
     const zip = new AdmZip();
     for (const dir of dirs) {
-      const folderName = path.basename(dir);
-      // addLocalFolder reads straight off local disk, and images are only fetched into the working
-      // copy when something asks for them — hydrate first so the ZIP is never a silent partial
-      // backup (see ensureAllAssetsLocal).
-      await ensureAllAssetsLocal(folderName);
-      zip.addLocalFolder(dir, folderName);
+      await addProblemToZip(zip, dir, path.basename(dir));
     }
     const buffer = zip.toBuffer();
     const dateStr = new Date().toISOString().slice(0, 10);
@@ -1014,10 +1103,8 @@ export function createStudioApp(options: StudioAppOptions = {}): express.Express
   api.get('/problems/:folder/export-zip', handle(async (req, res) => {
     const dir = await resolveFolderPresent(paramStr(req.params.folder));
     const folderName = path.basename(dir);
-    // See the /export-zip handler above: hydrate from the database before reading local disk.
-    await ensureAllAssetsLocal(folderName);
     const zip = new AdmZip();
-    zip.addLocalFolder(dir, folderName);
+    await addProblemToZip(zip, dir, folderName);
     const buffer = zip.toBuffer();
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', `attachment; filename="${folderName}.zip"`);

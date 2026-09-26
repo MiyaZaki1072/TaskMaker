@@ -742,39 +742,80 @@
 
   // ========== Image Picker Dialog ==========
 
+  // Which tab the picker shows: this problem's own images, or the global library (global/<name>).
+  // Remembered between openings, so picking the shared logo for several fields stays one click.
+  let pickerSource = 'problem';
+  const pickerTabs = Array.from(document.querySelectorAll('.picker-tab'));
+  const pickerHint = document.getElementById('picker-hint');
+  const pickerLibraryLink = document.getElementById('picker-library-link');
+
   async function openImagePicker(targetEl, isInsert = false) {
     pickerTarget = { el: targetEl, isInsert };
-    pickerGrid.innerHTML = '<p style="color:var(--ink-soft);grid-column:1/-1">Loading...</p>';
     pickerDialog.showModal();
-    const assets = await fetchAssets(true);
-    renderPickerGrid(assets);
+    await showPickerSource(pickerSource);
   }
 
-  function renderPickerGrid(assets) {
+  async function fetchLibraryImages() {
+    try {
+      const data = await api('/api/library');
+      return (data.images || []).map((image) => ({ name: image.name, src: image.url, path: 'global/' + image.name }));
+    } catch (err) {
+      toast('Could not load the library: ' + err.message, 'error');
+      return [];
+    }
+  }
+
+  async function showPickerSource(source) {
+    pickerSource = source;
+    pickerTabs.forEach((tab) => {
+      const active = tab.dataset.source === source;
+      tab.classList.toggle('is-active', active);
+      tab.setAttribute('aria-selected', String(active));
+    });
+    const isLibrary = source === 'library';
+    pickerUploadBtn.hidden = isLibrary;
+    pickerLibraryLink.hidden = !isLibrary;
+    pickerHint.textContent = isLibrary
+      ? 'Images shared by every problem. The problem links to them as global/<name>, so replacing one in the library updates this problem too'
+      : 'Click an image to select it, or upload a new one below';
+    pickerGrid.innerHTML = '<p style="color:var(--ink-soft);grid-column:1/-1">Loading...</p>';
+    const items = isLibrary
+      ? await fetchLibraryImages()
+      : (await fetchAssets(true)).map((asset) => ({ name: asset.name, src: asset.url + '?v=' + Date.now(), path: 'assets/' + asset.name }));
+    // The other tab was clicked while this one was still loading
+    if (pickerSource !== source) return;
+    renderPickerGrid(items, source);
+  }
+
+  pickerTabs.forEach((tab) => tab.addEventListener('click', () => showPickerSource(tab.dataset.source)));
+
+  function renderPickerGrid(items, source) {
     pickerGrid.innerHTML = '';
-    if (assets.length === 0) {
-      pickerGrid.innerHTML = '<p style="color:var(--ink-soft);grid-column:1/-1">No images in this problem yet — click "+ Upload New Image" below to get started</p>';
+    if (items.length === 0) {
+      pickerGrid.innerHTML = source === 'library'
+        ? '<p style="color:var(--ink-soft);grid-column:1/-1">The library has no images yet — add the contest logo on the <a href="/library" target="_blank" rel="noopener">📚 Library page</a>, then come back to this tab</p>'
+        : '<p style="color:var(--ink-soft);grid-column:1/-1">No images in this problem yet — click "+ Upload New Image" below to get started</p>';
       return;
     }
-    assets.forEach((asset) => {
+    items.forEach((image) => {
       const item = document.createElement('div');
       item.className = 'asset-item';
-      item.title = 'Click to select assets/' + asset.name;
+      item.title = 'Click to select ' + image.path;
       item.innerHTML =
-        '<img src="' + asset.url + '?v=' + Date.now() + '" alt="' + escapeHtml(asset.name) + '">' +
-        '<span class="asset-name">' + escapeHtml(asset.name) + '</span>';
+        '<img src="' + escapeHtml(image.src) + '" alt="' + escapeHtml(image.name) + '">' +
+        '<span class="asset-name">' + escapeHtml(image.name) + '</span>';
       item.addEventListener('click', () => {
-        applyImageToTarget(asset.name);
+        applyImageToTarget(image.path);
         pickerDialog.close();
       });
       pickerGrid.appendChild(item);
     });
   }
 
-  function applyImageToTarget(assetName) {
+  /** `path` is what goes into the yaml: assets/<name> or global/<name> */
+  function applyImageToTarget(path) {
     if (!pickerTarget || !pickerTarget.el) return;
     const el = pickerTarget.el;
-    const path = 'assets/' + assetName;
     if (pickerTarget.isInsert) {
       insertTextAtCursor(el, '[img: ' + path + ']');
     } else {
@@ -1129,8 +1170,8 @@
     }
     cachedAssets = [];
     refreshAssets();
-    if (pickerDialog?.open) {
-      fetchAssets(true).then(renderPickerGrid);
+    if (pickerDialog?.open && pickerSource === 'problem') {
+      showPickerSource('problem');
     }
     reloadPreview();
   }
@@ -1160,6 +1201,83 @@
     };
     connect();
   })();
+
+  // ---------- Snippets: copy saved text (e.g. the contest rules) from the library ----------
+  // Copied, never linked: each problem keeps its own text and can still be edited here.
+  const snippetsBtn = document.getElementById('btn-snippets');
+  const snippetDialog = document.getElementById('snippet-dialog');
+  const snippetList = document.getElementById('snippet-list');
+
+  /** Clipboard API first; the textarea fallback covers plain-http access from another machine */
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch { /* fall through */ }
+    // Inside the open modal: everything outside it is inert, so a textarea there could not be selected
+    const host = snippetDialog.open ? snippetDialog : document.body;
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    host.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch { ok = false; }
+    ta.remove();
+    return ok;
+  }
+
+  function renderSnippetList(snippets) {
+    snippetList.innerHTML = '';
+    if (snippets.length === 0) {
+      snippetList.innerHTML =
+        '<p class="snippet-empty">No snippets yet — save text like the contest rules on the ' +
+        '<a href="/library" target="_blank" rel="noopener">📚 Library page</a>, then open this again</p>';
+      return;
+    }
+    snippets.forEach((snippet) => {
+      const card = document.createElement('div');
+      card.className = 'snippet-card';
+      const head = document.createElement('div');
+      head.className = 'snippet-head';
+      const name = document.createElement('strong');
+      name.textContent = snippet.name;
+      const copyBtn = document.createElement('button');
+      copyBtn.type = 'button';
+      copyBtn.className = 'btn btn-sm btn-primary';
+      copyBtn.textContent = 'Copy';
+      copyBtn.addEventListener('click', async () => {
+        const ok = await copyText(snippet.body);
+        if (ok) {
+          snippetDialog.close();
+          toast('Copied "' + snippet.name + '" — click where you want it and press Ctrl+V', 'ok');
+        } else {
+          toast('Could not copy — select the text below and copy it by hand', 'error');
+        }
+      });
+      head.append(name, copyBtn);
+      const preview = document.createElement('div');
+      preview.className = 'snippet-preview';
+      preview.textContent = snippet.body;
+      card.append(head, preview);
+      snippetList.appendChild(card);
+    });
+  }
+
+  snippetsBtn?.addEventListener('click', async () => {
+    snippetList.innerHTML = '<p class="snippet-empty">Loading...</p>';
+    snippetDialog.showModal();
+    try {
+      const data = await api('/api/library');
+      renderSnippetList(data.snippets || []);
+    } catch (err) {
+      snippetList.innerHTML = '';
+      toast('Could not load the snippets: ' + err.message, 'error');
+    }
+  });
+  document.getElementById('snippet-close')?.addEventListener('click', () => snippetDialog.close());
 
   // ---------- Delete problem ----------
   const deleteBtn = document.getElementById('btn-delete-editor');

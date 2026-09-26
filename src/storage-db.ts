@@ -68,7 +68,7 @@ const CONTENT_TYPES: Record<string, string> = {
   '.svg': 'image/svg+xml',
   '.webp': 'image/webp',
 };
-function contentTypeFor(filename: string): string {
+export function contentTypeFor(filename: string): string {
   return CONTENT_TYPES[path.extname(filename).toLowerCase()] ?? 'application/octet-stream';
 }
 
@@ -77,7 +77,7 @@ function contentTypeFor(filename: string): string {
 let schemaReady: Promise<void> | undefined;
 
 /** Idempotent: safe to call on every cold start. See also `npm run db:init` for an explicit check. */
-async function ensureSchema(): Promise<void> {
+export async function ensureSchema(): Promise<void> {
   if (!schemaReady) {
     schemaReady = (async () => {
       const q = sql();
@@ -108,6 +108,27 @@ async function ensureSchema(): Promise<void> {
         CREATE TABLE IF NOT EXISTS storage_meta (
           key TEXT PRIMARY KEY,
           value TEXT NOT NULL
+        )
+      `;
+      // The global library (see library.ts). Not tied to any problem, so no foreign key. `hash` is
+      // a content hash of the bytes: it is what lets a warm instance tell that its cached copy of
+      // "logo.png" is an older upload, since replacing an image under the same name is the whole
+      // point of a shared logo.
+      await q`
+        CREATE TABLE IF NOT EXISTS library_images (
+          filename TEXT PRIMARY KEY,
+          data TEXT NOT NULL,
+          content_type TEXT NOT NULL,
+          size INTEGER NOT NULL,
+          hash TEXT NOT NULL,
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+      `;
+      await q`
+        CREATE TABLE IF NOT EXISTS library_snippets (
+          name TEXT PRIMARY KEY,
+          body TEXT NOT NULL,
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
         )
       `;
     })().catch((err) => {
@@ -200,6 +221,31 @@ function forgetAsset(folder: string, filename: string): void {
   knownAssets.get(folder)?.delete(filename);
 }
 
+/**
+ * Library image name -> content hash, as of the last reconcile. The same synchronous view
+ * knownAssets gives render.ts for problem images, for `global/…` references (see library.ts).
+ * Undefined until the first reconcile lands, which render.ts treats as "probably fine".
+ */
+let knownLibraryImages: Map<string, string> | undefined;
+
+/**
+ * What the database is known to hold for one library image, without a query:
+ *   - a hash string: it exists, and this is its current content
+ *   - null: the last reconcile saw no such image
+ *   - undefined: nothing loaded yet, so no opinion
+ */
+export function knownLibraryImageHash(filename: string): string | null | undefined {
+  if (!knownLibraryImages) return undefined;
+  return knownLibraryImages.get(filename) ?? null;
+}
+
+/** Keeps the synchronous view current after a write on this instance, ahead of the next reconcile */
+export function rememberLibraryImage(filename: string, hash: string | null): void {
+  if (!knownLibraryImages) return;
+  if (hash === null) knownLibraryImages.delete(filename);
+  else knownLibraryImages.set(filename, hash);
+}
+
 export function storageHealth(): { ok: boolean; message?: string } {
   if (!isDbConfigured()) return { ok: true };
   if (lastSyncError) return { ok: false, message: `Could not reach the database: ${lastSyncError}` };
@@ -268,6 +314,12 @@ async function reconcile(): Promise<void> {
   }
   knownAssets.clear();
   for (const [folder, names] of remoteAssets) knownAssets.set(folder, names);
+
+  // Same idea for the global library: names and content hashes only, never the bytes.
+  const libraryRows = (await sql()`
+    SELECT filename, hash FROM library_images
+  `) as unknown as Array<{ filename: string; hash: string }>;
+  knownLibraryImages = new Map(libraryRows.map((row) => [row.filename, row.hash]));
 
   // Deleting local files is only safe on a disposable working copy (the container's, or an explicit
   // test opt-in — see PROBLEMS_DIR_DISPOSABLE). Run this against a real checkout and the database

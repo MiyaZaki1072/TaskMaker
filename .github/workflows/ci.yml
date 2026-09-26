@@ -44,6 +44,9 @@ jobs:
       - name: ZIP export/import tests
         run: npm run verify:zip
 
+      - name: Global library tests
+        run: npm run test:library
+
       # Auth, sessions, CSRF, upload limits and rate limiting. This is the check that matters most
       # on a public repo: the studio is meant to be reachable from the internet.
       - name: Security tests

@@ -9,6 +9,7 @@ import http from 'node:http';
 import path from 'node:path';
 import express from 'express';
 import { WebSocketServer, type WebSocket } from 'ws';
+import { serveLibraryAsset } from './library.js';
 import { ROOT, renderErrorPage, renderProblem } from './render.js';
 import { ensureAllAssetsLocal, ensureAssetLocal } from './storage-db.js';
 
@@ -105,6 +106,9 @@ export async function startServer(problemDir: string, options: ServerOptions = {
     },
     express.static(problemAssetsDir, { fallthrough: true }),
   );
+  // `global/…` images from the shared library — the PDF, Export All and booklet all render
+  // through this server, so they need the same route the studio preview uses.
+  app.get('/library-assets/:name', serveLibraryAsset);
   app.use('/vendor/katex', express.static(KATEX_DIST));
   app.use('/vendor/hljs', express.static(HLJS_STYLES));
 

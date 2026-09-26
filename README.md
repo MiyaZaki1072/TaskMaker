@@ -127,7 +127,7 @@ Create one with `npm run new "Example Task"`, or the **+ New Problem** button in
 |---|---|---|---|
 | `task.code` | string | Short identifier, used in exported filenames | Yes |
 | `task.name` | string | Problem title shown in the header | Yes |
-| `logo` | string | Header logo path, e.g. `assets/logo.png` | No |
+| `logo` | string | Header logo path, e.g. `assets/logo.png`, or `global/logo.png` from the library | No |
 | `story` | string | The problem statement | Yes |
 | `input_format` | string[] | Lines describing the input | Yes |
 | `output_format` | string[] | Lines describing the output | Yes |
@@ -142,7 +142,22 @@ Create one with `npm run new "Example Task"`, or the **+ New Problem** button in
 
 - **Maths** — `$1 \le N \le 10^5$` inline, `$$...$$` centred. Escape a literal dollar as `\$`.
 - **Images** — `[img: assets/diagram.png]`, or `[img: assets/diagram.png | Caption text]`.
+- **Shared images** — `global/<name>` in any image slot (`logo: "global/logo.png"`,
+  `[img: global/logo.png]`) uses an image from the library. See below.
 - **Indentation** — spaces only. YAML rejects tabs.
+
+### The library
+
+**📚 Library** on the dashboard holds what every problem shares:
+
+- **Images**, like the contest logo. Problems link to them live as `global/<name>`, so replacing
+  `logo.png` on the library page updates every problem, preview and PDF at once. The editor's
+  image picker has a **Global library** tab that fills this in. Deleting an image first lists the
+  problems that still use it. A ZIP export copies each library image the problem uses into its own
+  `assets/` (as `global-<name>`), so the package is complete wherever it is imported.
+- **Text snippets**, like the contest rules. The editor's **📋 Snippets** button copies one to paste
+  into any field. It is a copy: editing the snippet later does not change problems that already
+  contain it.
 
 That YAML renders to this — the same template the PDF export uses, so the preview is what prints:
 
@@ -174,11 +189,13 @@ That YAML renders to this — the same template the PDF export uses, so the prev
 | `npm run verify:zip` | ZIP export and import, including collision handling |
 | `npm run test:text` | Text and maths rendering regressions |
 | `npm run test:assets` | Image handling (requires a database) |
+| `npm run test:library` | The shared library: `global/` images, snippets, ZIP flattening. Its cross-instance checks run only with a database |
 
 CI runs these on every push and pull request, plus a container build that asserts Chromium, the
 Thai fonts and the runtime files are really in the image, and that the server refuses to start
 without a password. `test:assets` is the exception — it needs a live database, so it is run
-locally rather than in CI.
+locally rather than in CI. `test:library` runs in CI without one; run it locally with
+`DATABASE_URL` set (to a UTF-8 database) to cover the cross-instance part too.
 
 ---
 
@@ -189,7 +206,10 @@ own filesystem so the rendering and PDF pipeline can read ordinary files, and re
 against the database on boot and in the background. In the container that working copy is scratch
 space — deliberately not a volume — so a restart always rebuilds it from the database.
 
-Images are stored in the database as base64 text alongside the problem they belong to.
+Images are stored in the database as base64 text alongside the problem they belong to. Library
+images are stored the same way with a content hash. Each instance's cached copy is named by that
+hash, and every request checks the current hash first, so a logo replaced or deleted on one
+instance is never served stale by another.
 
 ### Layout
 
@@ -199,6 +219,7 @@ Images are stored in the database as base64 text alongside the problem they belo
 | `src/studio-server.ts` | The dashboard's HTTP routes |
 | `src/auth.ts` | Sign-in, sessions, cross-site checks |
 | `src/storage-db.ts` | Postgres storage and working-copy reconciliation |
+| `src/library.ts` | The shared library: `global/` images and text snippets |
 | `src/db.ts` | Connection pool and query helpers |
 | `src/pdf-export.ts` | Chromium-driven PDF rendering |
 | `src/booklet.ts` | Cover page and table of contents |

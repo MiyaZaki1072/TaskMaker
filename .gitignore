@@ -20,4 +20,7 @@ build/
 # Your own problems live here locally and stay out of git.
 problems/*
 !problems/.gitkeep
+# The global library (shared logo, rule text) is content too — same rule as problems/
+library/*
+!library/.gitkeep
 PROJECT-CONTEXT.md

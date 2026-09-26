@@ -258,8 +258,22 @@ let libraryImageVersion: LibraryImageLookup = (filename) => {
   }
 };
 
-export function setLibraryImageLookup(lookup: LibraryImageLookup): void {
+/**
+ * Every name the library holds, or undefined when unknown. Only used to turn a "not found" warning
+ * into "did you mean global/logo.png?" when the name differs from a real one by case alone.
+ */
+type LibraryImageNames = () => readonly string[] | undefined;
+let libraryImageNames: LibraryImageNames = () => {
+  try {
+    return fs.readdirSync(path.join(LIBRARY_DIR, 'images')).filter((name) => !name.startsWith('.'));
+  } catch {
+    return [];
+  }
+};
+
+export function setLibraryImageLookup(lookup: LibraryImageLookup, names: LibraryImageNames): void {
   libraryImageVersion = lookup;
+  libraryImageNames = names;
 }
 
 /**
@@ -273,9 +287,14 @@ function toLibraryUrl(raw: string, filename: string, ctx: RenderContext): string
   // do not even ask — and never let such a name reach the filesystem lookup.
   const version = /[\\/]|^\./.test(filename) ? null : libraryImageVersion(filename);
   if (version === null) {
+    const lower = filename.toLowerCase();
+    const sameButCase = libraryImageNames()?.find((name) => name.toLowerCase() === lower);
     ctx.warnings.push(
-      `Global image "${raw}" not found in the library — upload it on the 📚 Library page, ` +
-        'or check the filename (uppercase/lowercase must match exactly)',
+      sameButCase
+        ? `Global image "${raw}" not found in the library — did you mean global/${sameButCase}? ` +
+            '(uppercase/lowercase must match exactly)'
+        : `Global image "${raw}" not found in the library — upload it on the 📚 Library page, ` +
+            'or check the filename (uppercase/lowercase must match exactly)',
     );
   }
   const query = version ? `?v=${encodeURIComponent(version)}` : '';

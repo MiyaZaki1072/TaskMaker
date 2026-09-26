@@ -52,7 +52,7 @@ export function dashboardPage(): string {
       <button id="btn-refresh" class="btn">Validate All</button>
       <button id="btn-export-all" class="btn">Export All (PDF)</button>
       <button id="btn-booklet" class="btn">Combine Into One Booklet</button>
-      <button id="btn-export-zip" class="btn" title="Download every problem including assets as a ZIP file">📦 Export ZIP</button>
+      <button id="btn-export-zip" class="btn" title="Download every problem including assets, plus the 📚 Library, as a ZIP file">📦 Export ZIP</button>
       <button id="btn-import-zip" class="btn" title="Import problems from a ZIP file">📥 Import ZIP</button>
       <a class="btn" href="/scoreboard" title="Make a scoreboard PDF from a CMS ranking download">🏆 Scoreboard</a>
       <a class="btn" href="/library" title="Images (like the contest logo) and text (like the rules) shared by every problem">📚 Library</a>
@@ -96,11 +96,11 @@ export function dashboardPage(): string {
         <div style="font-weight: 600; margin-bottom: 8px;">When a problem name already exists:</div>
         <label style="display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; cursor: pointer;">
           <input type="radio" name="import-mode" value="add" checked style="margin-top: 3px;">
-          <span><strong>Add as new</strong> — creates a new entry with a number suffix (e.g. <code>name_1</code>), the existing one is not overwritten</span>
+          <span><strong>Add as new</strong> — creates a new entry with a number suffix (e.g. <code>name_1</code>), the existing one is not overwritten. Library images and snippets already here are kept as they are</span>
         </label>
         <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer;">
           <input type="radio" name="import-mode" value="overwrite" style="margin-top: 3px;">
-          <span><strong>Replace / Overwrite</strong> — overwrites the existing problem with the same name</span>
+          <span><strong>Replace / Overwrite</strong> — overwrites the existing problem with the same name, and library images and snippets with the same name</span>
         </label>
       </div>
 
@@ -322,7 +322,7 @@ export function editorPage(info: EditorPageInfo): string {
   <dialog id="snippet-dialog" class="modal modal-wide">
     <div class="modal-body">
       <h2>📋 Snippets</h2>
-      <p class="hint">Saved text from the library. Click <strong>Copy</strong>, then paste it (Ctrl+V) where you want it — each problem gets its own copy, so you can still edit it here.</p>
+      <p class="hint" id="snippet-hint"></p>
       <div id="snippet-list" class="snippet-list"></div>
       <div class="modal-actions" style="justify-content:space-between;align-items:center;">
         <a class="btn btn-sm" href="/library" target="_blank" rel="noopener">Manage snippets ↗</a>
@@ -419,7 +419,7 @@ export function libraryPage(): string {
     </div>
 
     <p class="section-label">Text snippets</p>
-    <p class="field-hint">Saved text you reuse, like the contest rules or a standard note. In the editor, <strong>📋 Snippets</strong> copies one so you can paste it into any field — each problem gets its own copy, so editing a snippet here does not change problems that already use it.</p>
+    <p class="field-hint">Saved text you reuse, like the contest rules or a standard note. In the editor, <strong>📋 Snippets</strong> inserts one where your cursor was (or copies it) — each problem gets its own copy, so editing a snippet here does not change problems that already use it.</p>
     <button id="lib-new-snippet" type="button" class="btn btn-primary">+ New Snippet</button>
     <div id="lib-snippets" class="snippet-list"></div>
     <div id="lib-snippets-empty" class="empty-state" hidden>

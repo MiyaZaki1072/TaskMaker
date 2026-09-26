@@ -239,6 +239,11 @@ export function knownLibraryImageHash(filename: string): string | null | undefin
   return knownLibraryImages.get(filename) ?? null;
 }
 
+/** Every library image name as of the last reconcile, or undefined before the first one */
+export function knownLibraryImageNames(): string[] | undefined {
+  return knownLibraryImages ? [...knownLibraryImages.keys()] : undefined;
+}
+
 /** Keeps the synchronous view current after a write on this instance, ahead of the next reconcile */
 export function rememberLibraryImage(filename: string, hash: string | null): void {
   if (!knownLibraryImages) return;

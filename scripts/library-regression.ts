@@ -146,6 +146,24 @@ async function main(): Promise<void> {
       result.html.includes(`/problem-assets/${folder}/global/local.png`) && !result.html.includes('/library-assets/local.png'),
       'assets/global/local.png stays an ordinary problem image',
     );
+    check(
+      result.warnings.some((w) => w.includes('global/missing.png') && !w.includes('did you mean')),
+      'a missing image with no near match gets no "did you mean"',
+    );
+
+    // A second problem that gets the case wrong
+    const caseFolder = 'lib_case_fixture';
+    const caseDir = path.join(PROBLEMS_DIR, caseFolder);
+    fs.mkdirSync(path.join(caseDir, 'assets'), { recursive: true });
+    fs.writeFileSync(path.join(caseDir, 'problem.yaml'), fixtureYaml('global/LOGO.png'), 'utf8');
+    const caseWarnings = renderProblem(caseDir, { assetsBasePath: `/problem-assets/${caseFolder}` }).warnings;
+    check(
+      caseWarnings.some((w) => w.includes('global/LOGO.png') && w.includes('did you mean global/logo.png?')),
+      'a reference that differs only by case suggests the real name',
+    );
+    res = await get('/library-assets/LOGO.png');
+    check(res.status === 404, 'a wrong-case name is a 404 here too, as it is with a database or on Linux');
+    fs.rmSync(caseDir, { recursive: true, force: true });
 
     res = await get('/library-assets/logo.png');
     check(res.status === 200 && (await bytesOf(res)).equals(PNG_A), 'GET /library-assets/logo.png serves the uploaded bytes');
@@ -186,6 +204,12 @@ async function main(): Promise<void> {
     check(usage.folders.includes(folder), 'the usage check lists the problem that uses global/logo.png');
     res = await get('/api/library/images/icon.svg/usage');
     check(((await res.json()) as { folders: string[] }).folders.length === 0, 'an unused image reports no problems');
+    res = await get('/api/library/usage');
+    const allUsage = ((await res.json()) as { usage: Record<string, string[]> }).usage;
+    check(
+      res.status === 200 && allUsage['logo.png']?.includes(folder) === true && !('icon.svg' in allUsage),
+      'the all-images usage map lists logo.png as used by the fixture, and leaves unused icon.svg out',
+    );
 
     res = await get(`/api/problems/${folder}/export-zip`);
     check(res.status === 200, 'single-problem ZIP export succeeds');
@@ -249,6 +273,8 @@ async function main(): Promise<void> {
     snippets = ((await (await get('/api/library')).json()) as { snippets: Array<{ name: string; body: string }> }).snippets;
     check(snippets.length === 0, 'all snippets are gone');
 
+    await runBackupPart({ upload, get, sendJson, del, bytesOf, folder, fixtureContent, PROBLEMS_DIR, auth, baseUrl });
+
     res = await get('/library');
     check(res.status === 200 && (await res.text()).includes('/studio-assets/library.js'), 'the /library page is served');
 
@@ -274,6 +300,137 @@ async function main(): Promise<void> {
 
   console.log(failures === 0 ? '\nAll library checks passed\n' : `\n${failures} library check(s) FAILED\n`);
   if (failures > 0) process.exitCode = 1;
+}
+
+interface BackupPartDeps {
+  upload: (filename: string, bytes: Buffer, type?: string) => Promise<Response>;
+  get: (url: string) => Promise<Response>;
+  sendJson: (url: string, method: string, body: unknown) => Promise<Response>;
+  del: (url: string) => Promise<Response>;
+  bytesOf: (res: Response) => Promise<Buffer>;
+  /** The fixture problem and its original problem.yaml (live global/logo.png link) */
+  folder: string;
+  fixtureContent: string;
+  PROBLEMS_DIR: string;
+  auth: Record<string, string>;
+  baseUrl: string;
+}
+
+interface LibraryReport {
+  added: string[];
+  replaced: string[];
+  skipped: string[];
+  failed: string[];
+}
+
+/** Export All carries the library and keeps live links; Import restores it, honouring the mode */
+async function runBackupPart(deps: BackupPartDeps): Promise<void> {
+  const { upload, get, sendJson, del, bytesOf, folder, fixtureContent, PROBLEMS_DIR, auth, baseUrl } = deps;
+  const importZip = async (zip: AdmZip, mode: 'add' | 'overwrite') => {
+    const form = new FormData();
+    form.append('file', new Blob([new Uint8Array(zip.toBuffer())], { type: 'application/zip' }), 'backup.zip');
+    form.append('mode', mode);
+    const res = await fetch(`${baseUrl}/api/import-zip`, { method: 'POST', headers: auth, body: form });
+    const body = (await res.json()) as { imported?: string[]; library?: LibraryReport; error?: { message: string } };
+    return { status: res.status, ...body };
+  };
+  const imported: string[] = [];
+
+  console.log('\n  Export All / Import\n');
+  try {
+    await upload('logo.png', PNG_B);
+    await sendJson('/api/library/snippets', 'POST', { name: 'Rules', body: 'ห้ามใช้ AI\nสามชั่วโมง' });
+
+    let res = await get('/api/export-zip');
+    check(res.status === 200, 'Export All succeeds');
+    const backup = new AdmZip(await bytesOf(res));
+    check(backup.getEntry('_library/images/logo.png')?.getData().equals(PNG_B) === true, 'Export All carries the library image under _library/images/');
+    const zippedSnippets = JSON.parse(backup.getEntry('_library/snippets.json')?.getData().toString('utf8') ?? '[]') as unknown[];
+    check(
+      JSON.stringify(zippedSnippets) === JSON.stringify([{ name: 'Rules', body: 'ห้ามใช้ AI\nสามชั่วโมง' }]),
+      'Export All carries the snippets (Thai text intact) in _library/snippets.json',
+    );
+    check(
+      backup.getEntry(`${folder}/problem.yaml`)?.getData().toString('utf8') === fixtureContent,
+      "Export All keeps the problem's live global/ link instead of flattening it",
+    );
+    check(!backup.getEntry(`${folder}/assets/global-logo-2.png`), 'Export All adds no flattened global- copies');
+
+    // Lose the library, then restore it from the backup
+    await del('/api/library/images/logo.png');
+    await del('/api/library/snippets/Rules');
+    let result = await importZip(backup, 'add');
+    imported.push(...(result.imported ?? []));
+    check(result.status === 200, 'importing the Export All ZIP succeeds');
+    check(
+      result.library?.added.includes('global/logo.png') === true && result.library.added.includes('snippet "Rules"'),
+      'the import reports the library image and snippet as added',
+    );
+    res = await get('/library-assets/logo.png');
+    check(res.status === 200 && (await bytesOf(res)).equals(PNG_B), 'the restored library image is served');
+    const restored = ((await (await get('/api/library')).json()) as { snippets: Array<{ name: string; body: string }> }).snippets;
+    check(restored.some((s) => s.name === 'Rules' && s.body === 'ห้ามใช้ AI\nสามชั่วโมง'), 'the restored snippet has its text');
+    const copy = (result.imported ?? []).find((name) => name !== folder && name.startsWith(folder));
+    check(
+      !!copy && fs.readFileSync(path.join(PROBLEMS_DIR, copy, 'problem.yaml'), 'utf8').includes('logo: "global/logo.png"'),
+      'the imported problem still links global/logo.png live',
+    );
+
+    // 'add' never touches what is already here
+    await upload('logo.png', PNG_A);
+    await sendJson('/api/library/snippets/Rules', 'PUT', { name: 'Rules', body: 'edited here' });
+    result = await importZip(backup, 'add');
+    imported.push(...(result.imported ?? []));
+    check(
+      result.library?.skipped.includes('global/logo.png') === true && result.library.skipped.includes('snippet "Rules"'),
+      "'add' mode reports same-named library items as skipped",
+    );
+    res = await get('/library-assets/logo.png');
+    check((await bytesOf(res)).equals(PNG_A), "'add' mode keeps this studio's own logo.png");
+
+    // 'overwrite' replaces them
+    result = await importZip(backup, 'overwrite');
+    check(
+      result.library?.replaced.includes('global/logo.png') === true && result.library.replaced.includes('snippet "Rules"'),
+      "'overwrite' mode reports same-named library items as replaced",
+    );
+    res = await get('/library-assets/logo.png');
+    check((await bytesOf(res)).equals(PNG_B), "'overwrite' mode puts the backup's logo.png back");
+    const overwritten = ((await (await get('/api/library')).json()) as { snippets: Array<{ name: string; body: string }> }).snippets;
+    check(overwritten.some((s) => s.name === 'Rules' && s.body === 'ห้ามใช้ AI\nสามชั่วโมง'), "'overwrite' mode puts the backup's snippet text back");
+
+    // A library-only ZIP, with the kinds of entries an attacker would try
+    const hostile = new AdmZip();
+    hostile.addFile('_library/images/ok.png', PNG_A);
+    hostile.addFile('_library/images/bad name.png', PNG_A);
+    hostile.addFile('_library/images/run.exe', PNG_A);
+    hostile.addFile(
+      '_library/images/evil.svg',
+      Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><script>alert(2)</script></svg>'),
+    );
+    hostile.addFile('_library/snippets.json', Buffer.from(JSON.stringify([{ name: 'Good', body: 'fine' }, { name: '', body: 'x' }, 'junk'])));
+    result = await importZip(hostile, 'add');
+    check(result.status === 200 && (result.imported ?? []).length === 0, 'a ZIP with only a _library/ folder imports without needing a problem');
+    check(result.library?.added.includes('global/ok.png') === true, 'a valid image in it is added');
+    check(
+      (result.library?.failed ?? []).some((f) => f.includes('bad name.png')) && (result.library?.failed ?? []).some((f) => f.includes('run.exe')),
+      'bad image names and non-image files are reported, not imported',
+    );
+    check(result.library?.added.includes('snippet "Good"') === true, 'a valid snippet in it is added');
+    check((result.library?.failed ?? []).filter((f) => f.startsWith('snippet')).length === 2, 'invalid snippets are reported, not imported');
+    res = await get('/library-assets/evil.svg');
+    const evil = (await bytesOf(res)).toString('utf8');
+    check(res.status === 200 && !evil.includes('<script') && !evil.includes('onload'), 'an imported SVG is sanitized like an uploaded one');
+
+    const empty = new AdmZip();
+    empty.addFile('notes/readme.txt', Buffer.from('hello'));
+    result = await importZip(empty, 'add');
+    check(result.status === 400, 'a ZIP with neither problems nor a library is still rejected');
+  } finally {
+    for (const name of imported) fs.rmSync(path.join(PROBLEMS_DIR, name), { recursive: true, force: true });
+    for (const name of ['logo.png', 'ok.png', 'evil.svg']) await del(`/api/library/images/${name}`);
+    for (const name of ['Rules', 'Good']) await del(`/api/library/snippets/${name}`);
+  }
 }
 
 interface DbPartDeps {

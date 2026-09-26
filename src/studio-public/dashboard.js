@@ -548,7 +548,17 @@
         throw new Error((data && data.error && data.error.message) || 'Import failed');
       }
       const modeText = data.mode === 'overwrite' ? ' (overwrite mode)' : ' (add-new mode)';
-      toast('Imported ' + data.count + ' problem(s) successfully' + modeText + ': ' + data.imported.join(', '), 'ok');
+      toast('Imported ' + data.count + ' problem(s) successfully' + modeText + (data.count > 0 ? ': ' + data.imported.join(', ') : ''), 'ok');
+      // An Export All ZIP also carries the 📚 Library
+      const lib = data.library;
+      if (lib) {
+        const parts = [];
+        if (lib.added.length) parts.push(lib.added.length + ' added');
+        if (lib.replaced.length) parts.push(lib.replaced.length + ' replaced');
+        if (lib.skipped.length) parts.push(lib.skipped.length + ' already here, kept as is (' + lib.skipped.join(', ') + ')');
+        if (parts.length) toast('📚 Library: ' + parts.join(', '), 'ok');
+        if (lib.failed.length) toast('📚 Library items not imported: ' + lib.failed.join('; '), 'error');
+      }
       importDialog?.close();
       await refreshList();
     } catch (err) {

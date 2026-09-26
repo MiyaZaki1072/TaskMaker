@@ -24,6 +24,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import type AdmZip from 'adm-zip';
 import type { Request, Response } from 'express';
 import { isDbConfigured, isUniqueViolation, sql } from './db.js';
 import { ProblemError } from './errors.js';
@@ -34,6 +35,7 @@ import {
   contentTypeFor,
   ensureSchema,
   knownLibraryImageHash,
+  knownLibraryImageNames,
   rememberLibraryImage,
   storageHealth,
   syncFromStorage,
@@ -66,8 +68,13 @@ function libraryImageUrl(filename: string, version: string): string {
   return `/library-assets/${encodeURIComponent(filename)}?v=${encodeURIComponent(version)}`;
 }
 
-/** Local mode's version: the file's mtime, or null when the image does not exist */
+/**
+ * Local mode's version: the file's mtime, or null when the image does not exist. The name must
+ * match exactly: on Windows and macOS the filesystem would find "LOGO.png" for logo.png, which
+ * then breaks on Linux and with a database — better to warn on the author's own machine.
+ */
 function localVersion(filename: string): string | null {
+  if (!localNames().includes(filename)) return null;
   try {
     const stat = fs.statSync(path.join(IMAGES_DIR, filename));
     return stat.isFile() ? String(Math.floor(stat.mtimeMs)) : null;
@@ -76,11 +83,26 @@ function localVersion(filename: string): string | null {
   }
 }
 
+/** Local mode's image names. Dotfiles are writeFileAtomic's in-flight temp files (and .gitkeep-style markers) */
+function localNames(): string[] {
+  try {
+    return fs
+      .readdirSync(IMAGES_DIR, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && !entry.name.startsWith('.'))
+      .map((entry) => entry.name);
+  } catch {
+    return [];
+  }
+}
+
 // render.ts's `global/…` check. With a database it must never consult local disk: a leftover
 // cached copy would otherwise hide the "not found" warning for an image deleted on another
 // instance. Before the first reconcile the database answer is undefined, which render.ts treats
 // as "probably fine" rather than crying wolf on every cold start.
-setLibraryImageLookup((filename) => (isDbConfigured() ? knownLibraryImageHash(filename) : localVersion(filename)));
+setLibraryImageLookup(
+  (filename) => (isDbConfigured() ? knownLibraryImageHash(filename) : localVersion(filename)),
+  () => (isDbConfigured() ? knownLibraryImageNames() : localNames()),
+);
 
 function cachePath(filename: string, hash: string): string {
   return path.join(CACHE_DIR, `${hash}-${filename}`);
@@ -108,16 +130,11 @@ function pruneCache(filename: string, keepHash: string | null): void {
 export async function listLibraryImages(): Promise<LibraryImage[]> {
   let images: LibraryImage[];
   if (!isDbConfigured()) {
-    if (!fs.existsSync(IMAGES_DIR)) return [];
-    images = fs
-      .readdirSync(IMAGES_DIR, { withFileTypes: true })
-      // Dotfiles are writeFileAtomic's in-flight temp files (and .gitkeep-style markers)
-      .filter((entry) => entry.isFile() && !entry.name.startsWith('.'))
-      .map((entry) => {
-        const stat = fs.statSync(path.join(IMAGES_DIR, entry.name));
-        const version = String(Math.floor(stat.mtimeMs));
-        return { name: entry.name, size: stat.size, version, url: libraryImageUrl(entry.name, version) };
-      });
+    images = localNames().map((name) => {
+      const stat = fs.statSync(path.join(IMAGES_DIR, name));
+      const version = String(Math.floor(stat.mtimeMs));
+      return { name, size: stat.size, version, url: libraryImageUrl(name, version) };
+    });
   } else {
     await ensureSchema();
     const rows = (await sql()`
@@ -321,30 +338,44 @@ export function findGlobalRefs(yaml: string): string[] {
   return [...new Set(Array.from(yaml.matchAll(GLOBAL_REF_IN_YAML_RE), (m) => m[1]!))];
 }
 
-/** The problem folders whose problem.yaml refers to this library image */
-export async function libraryImageUsage(rawName: string): Promise<string[]> {
-  const filename = sanitizeAssetName(rawName);
-  // Forced, not TTL-coalesced: this answers "is it safe to delete?", and a working copy a few
-  // seconds behind the database could say "used by nothing" about the logo on every problem.
-  await syncFromStorage({ force: true });
+/**
+ * Library image name -> the problem folders whose problem.yaml refers to it. One pass over every
+ * problem answers the library page's "used by N problems" and the delete check alike. Names no
+ * problem uses are absent; names a problem uses but the library lacks are included.
+ *
+ * `force` skips the sync's TTL: the delete check needs that (a working copy a few seconds behind
+ * the database could say "used by nothing" about the logo on every problem), the overview does not.
+ */
+export async function libraryUsage(options: { force?: boolean } = {}): Promise<Map<string, string[]>> {
+  await syncFromStorage({ force: options.force ?? false });
   const health = storageHealth();
   if (!health.ok) {
-    throw new ProblemError('Could not check which problems use this image', {
+    throw new ProblemError('Could not check which problems use the library images', {
       details: health.message ? [health.message] : [],
       hint: 'Try again in a moment',
     });
   }
-  const folders: string[] = [];
+  const usage = new Map<string, string[]>();
   for (const dir of listProblemDirs()) {
+    let yaml: string;
     try {
-      if (findGlobalRefs(fs.readFileSync(path.join(dir, 'problem.yaml'), 'utf8')).includes(filename)) {
-        folders.push(path.basename(dir));
-      }
+      yaml = fs.readFileSync(path.join(dir, 'problem.yaml'), 'utf8');
     } catch {
-      /* deleted while we were looking */
+      continue; // deleted while we were looking
+    }
+    for (const name of findGlobalRefs(yaml)) {
+      const folders = usage.get(name) ?? [];
+      folders.push(path.basename(dir));
+      usage.set(name, folders);
     }
   }
-  return folders;
+  return usage;
+}
+
+/** The problem folders whose problem.yaml refers to this library image */
+export async function libraryImageUsage(rawName: string): Promise<string[]> {
+  const filename = sanitizeAssetName(rawName);
+  return (await libraryUsage({ force: true })).get(filename) ?? [];
 }
 
 /** `global-logo.png`, then `global-logo-2.png`, … — undefined if no free name passes the filename rules */
@@ -539,4 +570,145 @@ export async function deleteSnippet(name: string): Promise<void> {
     DELETE FROM library_snippets WHERE name = ${name} RETURNING name
   `) as unknown as Array<{ name: string }>;
   if (rows.length === 0) throw snippetNotFound();
+}
+
+// ---------- the library in Export All / Import ZIP ----------
+
+/**
+ * Export All is the studio's backup, so it carries the library itself — `_library/images/<name>`
+ * and `_library/snippets.json` beside the problem folders — and its problems keep their live
+ * `global/` links. The single-problem export flattens instead (flattenGlobalRefs), because it has
+ * no library to bring along.
+ */
+const ZIP_LIBRARY_DIR = '_library';
+const ZIP_IMAGE_RE = /^(?:.*\/)?_library\/images\/([^/]+)$/;
+const ZIP_SNIPPETS_RE = /^(?:.*\/)?_library\/snippets\.json$/;
+
+/** Same cap as a library upload through the page */
+const LIBRARY_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+
+/** Adds the whole library to an export ZIP; returns how much went in */
+export async function addLibraryToZip(zip: AdmZip): Promise<{ images: number; snippets: number }> {
+  let images = 0;
+  for (const image of await listLibraryImages()) {
+    const found = await resolveLibraryImage(image.name);
+    if (!found) continue; // deleted since the listing
+    zip.addFile(`${ZIP_LIBRARY_DIR}/images/${image.name}`, fs.readFileSync(found.file));
+    images += 1;
+  }
+  const snippets = await listSnippets();
+  if (snippets.length > 0) {
+    zip.addFile(`${ZIP_LIBRARY_DIR}/snippets.json`, Buffer.from(`${JSON.stringify(snippets, null, 2)}\n`, 'utf8'));
+  }
+  return { images, snippets: snippets.length };
+}
+
+export interface ZipLibrary {
+  images: Array<{ filename: string; data: Buffer }>;
+  /** Unvalidated: importLibrary checks each one the same way the page's save does */
+  snippets: unknown[];
+  /** Problems found while reading, reported back rather than failing the whole import */
+  failed: string[];
+}
+
+/**
+ * Reads `_library/` out of an import ZIP. Only the last path segment is ever used, as a name that
+ * saveLibraryImage then validates, so an entry cannot write anywhere but the library.
+ * The caller has already applied the ZIP's decompressed-size limit.
+ */
+export function readLibraryFromZip(zip: AdmZip): ZipLibrary {
+  const result: ZipLibrary = { images: [], snippets: [], failed: [] };
+  for (const entry of zip.getEntries()) {
+    if (entry.isDirectory) continue;
+    const norm = entry.entryName.replace(/\\/g, '/');
+    const image = norm.match(ZIP_IMAGE_RE);
+    if (image) {
+      result.images.push({ filename: image[1]!, data: entry.getData() });
+    } else if (ZIP_SNIPPETS_RE.test(norm)) {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(entry.getData().toString('utf8'));
+      } catch {
+        parsed = undefined;
+      }
+      if (Array.isArray(parsed)) result.snippets.push(...parsed);
+      else result.failed.push(`${norm}: not a list of snippets, so no snippets were imported from it`);
+    }
+  }
+  return result;
+}
+
+export function isZipLibraryEmpty(library: ZipLibrary): boolean {
+  return library.images.length === 0 && library.snippets.length === 0 && library.failed.length === 0;
+}
+
+/** What an import did with each library item, as `global/<name>` or `snippet "<name>"` */
+export interface LibraryImportReport {
+  added: string[];
+  replaced: string[];
+  /** Already in this library, and the import was in 'add' mode */
+  skipped: string[];
+  failed: string[];
+}
+
+/**
+ * Brings a ZIP's library into this one. Mirrors the problem import's modes: 'add' never touches
+ * what is already here (a same-named image or snippet is skipped and reported), 'overwrite'
+ * replaces it. A bad item is reported and the rest still import; an outage still throws.
+ */
+export async function importLibrary(library: ZipLibrary, mode: 'add' | 'overwrite'): Promise<LibraryImportReport> {
+  const report: LibraryImportReport = { added: [], replaced: [], skipped: [], failed: [...library.failed] };
+  const reason = (err: unknown) => {
+    if (err instanceof ProblemError) return err.message;
+    throw err;
+  };
+
+  // Case-insensitive, like the ZIP export's own collision check: on Windows or macOS "Logo.png"
+  // and "logo.png" are one file, so 'add' mode must treat them as the same image
+  const images = new Set((await listLibraryImages()).map((image) => image.name.toLowerCase()));
+  for (const image of library.images) {
+    const label = `global/${image.filename}`;
+    try {
+      const filename = sanitizeAssetName(image.filename);
+      if (filename !== image.filename) throw new ProblemError(`The filename "${image.filename}" cannot be used`);
+      if (image.data.length > LIBRARY_IMAGE_MAX_BYTES) throw new ProblemError('It is larger than 10MB');
+      const exists = images.has(filename.toLowerCase());
+      if (exists && mode === 'add') {
+        report.skipped.push(label);
+        continue;
+      }
+      await saveLibraryImage(filename, image.data);
+      images.add(filename.toLowerCase());
+      (exists ? report.replaced : report.added).push(label);
+    } catch (err) {
+      report.failed.push(`${label}: ${reason(err)}`);
+    }
+  }
+
+  const snippets = new Set((await listSnippets()).map((snippet) => snippet.name));
+  for (const raw of library.snippets) {
+    let snippet: Snippet;
+    try {
+      snippet = validateSnippet(raw);
+    } catch (err) {
+      const name = raw && typeof raw === 'object' && typeof (raw as Snippet).name === 'string' ? (raw as Snippet).name : '?';
+      report.failed.push(`snippet "${name}": ${reason(err)}`);
+      continue;
+    }
+    const label = `snippet "${snippet.name}"`;
+    const exists = snippets.has(snippet.name);
+    if (exists && mode === 'add') {
+      report.skipped.push(label);
+      continue;
+    }
+    try {
+      if (exists) await updateSnippet(snippet.name, snippet);
+      else await createSnippet(snippet);
+      snippets.add(snippet.name);
+      (exists ? report.replaced : report.added).push(label);
+    } catch (err) {
+      report.failed.push(`${label}: ${reason(err)}`);
+    }
+  }
+  return report;
 }

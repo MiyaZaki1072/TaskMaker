@@ -151,13 +151,20 @@ Create one with `npm run new "Example Task"`, or the **+ New Problem** button in
 **📚 Library** on the dashboard holds what every problem shares:
 
 - **Images**, like the contest logo. Problems link to them live as `global/<name>`, so replacing
-  `logo.png` on the library page updates every problem, preview and PDF at once. The editor's
-  image picker has a **Global library** tab that fills this in. Deleting an image first lists the
-  problems that still use it. A ZIP export copies each library image the problem uses into its own
-  `assets/` (as `global-<name>`), so the package is complete wherever it is imported.
-- **Text snippets**, like the contest rules. The editor's **📋 Snippets** button copies one to paste
-  into any field. It is a copy: editing the snippet later does not change problems that already
-  contain it.
+  `logo.png` on the library page updates every problem, preview and PDF at once. Typing `img` in
+  the editor, or its image picker's **Global library** tab, fills this in. Each library card shows
+  how many problems use the image, and deleting one first lists them. A name that is only wrong
+  in uppercase/lowercase gets a "did you mean global/logo.png?" warning.
+- **Text snippets**, like the contest rules. The editor's **📋 Snippets** button inserts one at the
+  cursor in the field you were last typing in (or copies it). It is a copy: editing the snippet
+  later does not change problems that already contain it.
+
+**ZIP export and import.** A single problem's **📦 Export ZIP** copies each library image it uses
+into its own `assets/` (as `global-<name>`), so the package is complete wherever it is imported.
+The dashboard's **📦 Export ZIP** is the backup of the whole studio: it carries the library itself
+in `_library/`, and its problems keep their live `global/` links. Importing it restores the library
+too — **Add as new** keeps any image or snippet already here with the same name, **Overwrite**
+replaces it.
 
 That YAML renders to this — the same template the PDF export uses, so the preview is what prints:
 
@@ -189,7 +196,7 @@ That YAML renders to this — the same template the PDF export uses, so the prev
 | `npm run verify:zip` | ZIP export and import, including collision handling |
 | `npm run test:text` | Text and maths rendering regressions |
 | `npm run test:assets` | Image handling (requires a database) |
-| `npm run test:library` | The shared library: `global/` images, snippets, ZIP flattening. Its cross-instance checks run only with a database |
+| `npm run test:library` | The shared library: `global/` images, snippets, usage counts, ZIP flattening, library backup and restore. Its cross-instance checks run only with a database |
 
 CI runs these on every push and pull request, plus a container build that asserts Chromium, the
 Thai fonts and the runtime files are really in the image, and that the server refuses to start

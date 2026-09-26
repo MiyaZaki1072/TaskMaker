@@ -954,6 +954,15 @@ dialog.modal.modal-wide {
   font-family: var(--mono);
 }
 
+.img-ac-group {
+  padding: 6px 8px 2px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .img-ac-empty {
   padding: 14px;
   text-align: center;
@@ -1270,6 +1279,10 @@ dialog.modal.modal-wide {
 .lib-image-meta {
   font-size: 0.78rem;
   color: var(--ink-soft);
+}
+
+.lib-image-meta.is-unused {
+  font-style: italic;
 }
 
 .lib-image-actions,

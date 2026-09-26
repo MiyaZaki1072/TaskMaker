@@ -223,7 +223,8 @@
   let pickerTarget = null;
   let acTarget = null;
   let acSelectedIndex = 0;
-  let currentAssets = [];
+  // What the "img" popup offers: { name, src, path, source } — this problem's images, then the library's
+  let acItems = [];
 
   // ========== helpers ==========
 
@@ -755,12 +756,23 @@
     await showPickerSource(pickerSource);
   }
 
-  async function fetchLibraryImages() {
+  // The library is edited on another page, so this is only reused briefly — long enough that
+  // typing "img" a few times does not refetch, short enough that a new logo shows up
+  let libraryImagesCache = null;
+  const LIBRARY_CACHE_MS = 30 * 1000;
+
+  /** `quiet` for the img popup, which just shows fewer images rather than toasting on every keystroke */
+  async function fetchLibraryImages({ quiet = false, fresh = true } = {}) {
+    if (!fresh && libraryImagesCache && Date.now() - libraryImagesCache.at < LIBRARY_CACHE_MS) {
+      return libraryImagesCache.items;
+    }
     try {
       const data = await api('/api/library');
-      return (data.images || []).map((image) => ({ name: image.name, src: image.url, path: 'global/' + image.name }));
+      const items = (data.images || []).map((image) => ({ name: image.name, src: image.url, path: 'global/' + image.name }));
+      libraryImagesCache = { at: Date.now(), items };
+      return items;
     } catch (err) {
-      toast('Could not load the library: ' + err.message, 'error');
+      if (!quiet) toast('Could not load the library: ' + err.message, 'error');
       return [];
     }
   }
@@ -870,7 +882,12 @@
     }
 
     acTarget = { el, triggerLen: match[1].length };
-    currentAssets = await fetchAssets();
+    const [assets, library] = await Promise.all([fetchAssets(), fetchLibraryImages({ quiet: true, fresh: false })]);
+    // Typing moved on (or the popup closed) while the lists loaded
+    if (!acTarget || acTarget.el !== el) return;
+    acItems = assets
+      .map((asset) => ({ name: asset.name, src: asset.url + '?v=' + Date.now(), path: 'assets/' + asset.name, source: 'problem' }))
+      .concat(library.map((image) => ({ ...image, source: 'library' })));
     acSelectedIndex = 0;
 
     const rect = el.getBoundingClientRect();
@@ -885,7 +902,7 @@
 
   function renderAcList() {
     acList.innerHTML = '';
-    if (currentAssets.length === 0) {
+    if (acItems.length === 0) {
       acList.innerHTML =
         '<div class="img-ac-empty">No images in this problem yet<br>' +
         '<button type="button" class="btn btn-sm" id="btn-ac-up" style="margin-top:6px">+ Upload Image</button></div>';
@@ -896,16 +913,25 @@
       return;
     }
 
-    currentAssets.forEach((asset, idx) => {
+    let lastSource = null;
+    acItems.forEach((image, idx) => {
+      // A heading wherever the source changes; the list is problem images first, then the library's
+      if (image.source !== lastSource) {
+        lastSource = image.source;
+        const heading = document.createElement('div');
+        heading.className = 'img-ac-group';
+        heading.textContent = image.source === 'library' ? '📚 Global library' : 'This problem';
+        acList.appendChild(heading);
+      }
       const item = document.createElement('div');
       item.className = 'img-ac-item' + (idx === acSelectedIndex ? ' is-selected' : '');
       item.innerHTML =
-        '<img class="img-ac-thumb" src="' + asset.url + '?v=' + Date.now() + '" alt="">' +
+        '<img class="img-ac-thumb" src="' + escapeHtml(image.src) + '" alt="">' +
         '<div class="img-ac-info">' +
-          '<span class="img-ac-name">' + escapeHtml(asset.name) + '</span>' +
-          '<span class="img-ac-path">assets/' + escapeHtml(asset.name) + '</span>' +
+          '<span class="img-ac-name">' + escapeHtml(image.name) + '</span>' +
+          '<span class="img-ac-path">' + escapeHtml(image.path) + '</span>' +
         '</div>';
-      item.addEventListener('click', () => commitAcSelection(asset.name));
+      item.addEventListener('click', () => commitAcSelection(image.path));
       acList.appendChild(item);
     });
   }
@@ -920,10 +946,10 @@
     });
   }
 
-  function commitAcSelection(assetName) {
+  /** `path` is what goes into the yaml: assets/<name> or global/<name> */
+  function commitAcSelection(path) {
     if (!acTarget || !acTarget.el) return;
     const el = acTarget.el;
-    const path = 'assets/' + assetName;
     const isTextarea = el.tagName === 'TEXTAREA' || el.id === 'yaml-editor';
     const textToInsert = isTextarea ? '[img: ' + path + ']' : path;
 
@@ -1038,23 +1064,23 @@
   });
 
   window.addEventListener('keydown', (ev) => {
-    if (!acBox.hidden && currentAssets.length > 0) {
+    if (!acBox.hidden && acItems.length > 0) {
       if (ev.key === 'ArrowDown') {
         ev.preventDefault();
-        acSelectedIndex = (acSelectedIndex + 1) % currentAssets.length;
+        acSelectedIndex = (acSelectedIndex + 1) % acItems.length;
         updateAcSelectionVisual();
         return;
       }
       if (ev.key === 'ArrowUp') {
         ev.preventDefault();
-        acSelectedIndex = (acSelectedIndex - 1 + currentAssets.length) % currentAssets.length;
+        acSelectedIndex = (acSelectedIndex - 1 + acItems.length) % acItems.length;
         updateAcSelectionVisual();
         return;
       }
       if (ev.key === 'Enter' || ev.key === 'Tab') {
         ev.preventDefault();
-        if (currentAssets[acSelectedIndex]) {
-          commitAcSelection(currentAssets[acSelectedIndex].name);
+        if (acItems[acSelectedIndex]) {
+          commitAcSelection(acItems[acSelectedIndex].path);
         }
         return;
       }
@@ -1202,11 +1228,56 @@
     connect();
   })();
 
-  // ---------- Snippets: copy saved text (e.g. the contest rules) from the library ----------
-  // Copied, never linked: each problem keeps its own text and can still be edited here.
+  // ---------- Snippets: insert saved text (e.g. the contest rules) from the library ----------
+  // Copied into the problem, never linked: each problem keeps its own text and can still be edited here.
   const snippetsBtn = document.getElementById('btn-snippets');
   const snippetDialog = document.getElementById('snippet-dialog');
   const snippetList = document.getElementById('snippet-list');
+  const snippetHint = document.getElementById('snippet-hint');
+
+  // The field the author was last typing in, which is where Insert puts a snippet. A text field
+  // keeps its cursor position while the dialog has focus, so the text lands where the cursor was.
+  let snippetTarget = null;
+  document.addEventListener('focusin', (ev) => {
+    const el = ev.target;
+    const isFormField = el.closest && el.closest('#editor-form') &&
+      (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && el.type === 'text'));
+    if (el === textarea || isFormField) snippetTarget = el;
+  });
+
+  /** The last-typed field, unless it has since been removed or hidden (a deleted example, the other mode) */
+  function usableSnippetTarget() {
+    const el = snippetTarget;
+    return el && el.isConnected && !el.closest('[hidden]') ? el : null;
+  }
+
+  function fieldName(el) {
+    if (el === textarea) return 'the YAML source';
+    const label = (el.id && document.querySelector('label[for="' + CSS.escape(el.id) + '"]')) || el.closest('label');
+    const first = label && label.firstChild;
+    const text = first && first.nodeType === Node.TEXT_NODE ? first.textContent.trim() : '';
+    return text ? '"' + text + '"' : 'the field you were editing';
+  }
+
+  /**
+   * In the YAML source, every line after the first takes the cursor line's indentation, so a
+   * multi-line snippet pasted into `story: |` stays inside that block instead of breaking the YAML
+   */
+  function snippetTextFor(el, body) {
+    if (el !== textarea) return body;
+    const lineStart = el.value.lastIndexOf('\n', el.selectionStart - 1) + 1;
+    const indent = el.value.slice(lineStart).match(/^ */)[0];
+    return body.split('\n').join('\n' + indent);
+  }
+
+  function insertSnippet(el, snippet) {
+    // Closed first: while the modal is open everything behind it is inert and cannot take focus
+    snippetDialog.close();
+    insertTextAtCursor(el, snippetTextFor(el, snippet.body));
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    setDirty(true);
+    toast('Inserted "' + snippet.name + '" into ' + fieldName(el), 'ok');
+  }
 
   /** Clipboard API first; the textarea fallback covers plain-http access from another machine */
   async function copyText(text) {
@@ -1229,7 +1300,7 @@
     return ok;
   }
 
-  function renderSnippetList(snippets) {
+  function renderSnippetList(snippets, target) {
     snippetList.innerHTML = '';
     if (snippets.length === 0) {
       snippetList.innerHTML =
@@ -1237,6 +1308,7 @@
         '<a href="/library" target="_blank" rel="noopener">📚 Library page</a>, then open this again</p>';
       return;
     }
+    const singleLine = target && target.tagName === 'INPUT';
     snippets.forEach((snippet) => {
       const card = document.createElement('div');
       card.className = 'snippet-card';
@@ -1244,9 +1316,26 @@
       head.className = 'snippet-head';
       const name = document.createElement('strong');
       name.textContent = snippet.name;
+      const actions = document.createElement('div');
+      actions.className = 'snippet-actions';
+
+      const insertBtn = document.createElement('button');
+      insertBtn.type = 'button';
+      insertBtn.className = 'btn btn-sm btn-primary';
+      insertBtn.textContent = 'Insert';
+      // A one-line box would silently drop the line breaks, so a multi-line snippet cannot go there
+      const blocked = !target
+        ? 'Click into the field you want the text in, then open Snippets again'
+        : singleLine && snippet.body.includes('\n')
+          ? 'This snippet has several lines, and ' + fieldName(target) + ' holds one — click into a bigger field first'
+          : '';
+      insertBtn.disabled = !!blocked;
+      insertBtn.title = blocked || 'Insert at the cursor in ' + fieldName(target);
+      insertBtn.addEventListener('click', () => insertSnippet(target, snippet));
+
       const copyBtn = document.createElement('button');
       copyBtn.type = 'button';
-      copyBtn.className = 'btn btn-sm btn-primary';
+      copyBtn.className = 'btn btn-sm';
       copyBtn.textContent = 'Copy';
       copyBtn.addEventListener('click', async () => {
         const ok = await copyText(snippet.body);
@@ -1257,7 +1346,8 @@
           toast('Could not copy — select the text below and copy it by hand', 'error');
         }
       });
-      head.append(name, copyBtn);
+      actions.append(insertBtn, copyBtn);
+      head.append(name, actions);
       const preview = document.createElement('div');
       preview.className = 'snippet-preview';
       preview.textContent = snippet.body;
@@ -1267,11 +1357,15 @@
   }
 
   snippetsBtn?.addEventListener('click', async () => {
+    const target = usableSnippetTarget();
+    snippetHint.textContent = target
+      ? 'Insert puts the text at the cursor in ' + fieldName(target) + '. It is a copy, so you can still edit it there — changing the snippet later does not change this problem.'
+      : 'Click into the field you want the text in, then open Snippets again to insert it there — or Copy it and paste with Ctrl+V.';
     snippetList.innerHTML = '<p class="snippet-empty">Loading...</p>';
     snippetDialog.showModal();
     try {
       const data = await api('/api/library');
-      renderSnippetList(data.snippets || []);
+      renderSnippetList(data.snippets || [], target);
     } catch (err) {
       snippetList.innerHTML = '';
       toast('Could not load the snippets: ' + err.message, 'error');

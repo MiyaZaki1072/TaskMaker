@@ -72,13 +72,18 @@ import {
   type Scoreboard,
 } from './scoreboard.js';
 import {
+  addLibraryToZip,
   createSnippet,
   deleteLibraryImage,
   deleteSnippet,
   flattenGlobalRefs,
+  importLibrary,
+  isZipLibraryEmpty,
   libraryImageUsage,
+  libraryUsage,
   listLibraryImages,
   listSnippets,
+  readLibraryFromZip,
   saveLibraryImage,
   serveLibraryAsset,
   updateSnippet,
@@ -112,18 +117,11 @@ interface ParsedZipProblem {
  * before anything touches local disk; importParsedProblems in
  * storage-db.ts does that decision and the eventual materialization.
  */
-function parseProblemsZip(buffer: Buffer, mode: 'add' | 'overwrite', existingFolders: Set<string>): ParsedZipProblem[] {
-  const zip = new AdmZip(buffer);
+function parseProblemsZip(zip: AdmZip, mode: 'add' | 'overwrite', existingFolders: Set<string>): ParsedZipProblem[] {
   const entries = zip.getEntries();
 
-  const yamlEntries = entries.filter((e) => !e.isDirectory && /(?:^|[\\/])problem\.yaml$/i.test(e.entryName));
-  if (yamlEntries.length === 0) {
-    throw new ProblemError('No problem.yaml file found in the uploaded ZIP', {
-      hint: 'Please check that the selected ZIP is a valid problem package',
-    });
-  }
-
-  // Zip bomb protection: reject if the total decompressed size exceeds 100MB
+  // Zip bomb protection: reject if the total decompressed size exceeds 100MB. Checked before
+  // anything is decompressed — including the library, which the caller reads after this.
   let totalDecompressedSize = 0;
   const MAX_ZIP_DECOMPRESSED = 100 * 1024 * 1024; // 100MB
   for (const entry of entries) {
@@ -132,6 +130,10 @@ function parseProblemsZip(buffer: Buffer, mode: 'add' | 'overwrite', existingFol
       throw new ProblemError('The ZIP file exceeds the safety limit for decompressed size (100MB)');
     }
   }
+
+  // None is fine here: an Export All from a studio with no problems carries only its library.
+  // The caller reports a ZIP with neither.
+  const yamlEntries = entries.filter((e) => !e.isDirectory && /(?:^|[\\/])problem\.yaml$/i.test(e.entryName));
 
   // In 'add' mode, a folder name already taken (on disk, in the database, or by an earlier entry
   // in this same ZIP) gets a numeric suffix so it is imported as a new problem instead of
@@ -1030,6 +1032,11 @@ export function createStudioApp(options: StudioAppOptions = {}): express.Express
     }),
   );
 
+  // Every image's "used by" list at once, for the counts on the library page
+  api.get('/library/usage', handle(async (_req, res) => {
+    res.json({ usage: Object.fromEntries(await libraryUsage()) });
+  }));
+
   // Asked right before a delete, so the confirmation can name every problem that would lose the image
   api.get('/library/images/:name/usage', handle(async (req, res) => {
     res.json({ folders: await libraryImageUsage(paramStr(req.params.name)) });
@@ -1056,15 +1063,20 @@ export function createStudioApp(options: StudioAppOptions = {}): express.Express
   // ---------- ZIP export / import ----------
 
   /**
-   * Adds one problem to an export ZIP under `folderName/`. Live `global/…` references are turned
-   * into ordinary images inside the problem's own assets/ (see flattenGlobalRefs), so the package
-   * is complete wherever it is imported. The studio's copy of the problem is not touched.
+   * Adds one problem to an export ZIP under `folderName/`. With `flatten`, live `global/…`
+   * references are turned into ordinary images inside the problem's own assets/ (see
+   * flattenGlobalRefs), so the package is complete wherever it is imported. Without it they stay
+   * live, for Export All, which carries the library alongside. The studio's copy is not touched.
    */
-  async function addProblemToZip(zip: AdmZip, dir: string, folderName: string): Promise<void> {
+  async function addProblemToZip(zip: AdmZip, dir: string, folderName: string, flatten: boolean): Promise<void> {
     // addLocalFolder reads straight off local disk, and images are only fetched into the working
     // copy when something asks for them — hydrate first so the ZIP is never a silent partial
     // backup (see ensureAllAssetsLocal).
     await ensureAllAssetsLocal(folderName);
+    if (!flatten) {
+      zip.addLocalFolder(dir, folderName);
+      return;
+    }
     const yaml = fs.readFileSync(path.join(dir, 'problem.yaml'), 'utf8');
     const localAssets = listProblemAssets(dir).map((asset) => asset.name);
     const flattened = await flattenGlobalRefs(yaml, localAssets);
@@ -1082,15 +1094,16 @@ export function createStudioApp(options: StudioAppOptions = {}): express.Express
     }
   }
 
-  // Export every problem as a single ZIP file
+  // Export every problem as a single ZIP file — the studio's backup, so the library comes too
   api.get('/export-zip', handle(async (_req, res) => {
     const dirs = listProblemDirs();
-    if (dirs.length === 0) {
-      throw new ProblemError('There are no problems in the system, so a ZIP cannot be created');
-    }
     const zip = new AdmZip();
     for (const dir of dirs) {
-      await addProblemToZip(zip, dir, path.basename(dir));
+      await addProblemToZip(zip, dir, path.basename(dir), false);
+    }
+    const library = await addLibraryToZip(zip);
+    if (dirs.length === 0 && library.images === 0 && library.snippets === 0) {
+      throw new ProblemError('There are no problems in the system, so a ZIP cannot be created');
     }
     const buffer = zip.toBuffer();
     const dateStr = new Date().toISOString().slice(0, 10);
@@ -1104,7 +1117,7 @@ export function createStudioApp(options: StudioAppOptions = {}): express.Express
     const dir = await resolveFolderPresent(paramStr(req.params.folder));
     const folderName = path.basename(dir);
     const zip = new AdmZip();
-    await addProblemToZip(zip, dir, folderName);
+    await addProblemToZip(zip, dir, folderName, true);
     const buffer = zip.toBuffer();
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', `attachment; filename="${folderName}.zip"`);
@@ -1141,11 +1154,28 @@ export function createStudioApp(options: StudioAppOptions = {}): express.Express
       const existing = isDbConfigured()
         ? (listKnownFolders() ?? new Set<string>())
         : new Set(listProblemDirs().map((d) => path.basename(d)));
-      const parsed = parseProblemsZip(file.buffer, mode, existing);
+      let zip: AdmZip;
+      try {
+        zip = new AdmZip(file.buffer);
+      } catch (err) {
+        throw new ProblemError('The file could not be read as a ZIP', {
+          details: [err instanceof Error ? err.message : String(err)],
+        });
+      }
+      const parsed = parseProblemsZip(zip, mode, existing);
+      const zipLibrary = readLibraryFromZip(zip);
+      if (parsed.length === 0 && isZipLibraryEmpty(zipLibrary)) {
+        throw new ProblemError('No problem.yaml file found in the uploaded ZIP', {
+          hint: 'Please check that the selected ZIP is a valid problem package',
+        });
+      }
 
-      await importParsedProblems(parsed, mode);
+      // Problems first: that write is all-or-nothing, and a failure there should not leave the
+      // library half imported from a package that was rejected
+      if (parsed.length > 0) await importParsedProblems(parsed, mode);
+      const library = await importLibrary(zipLibrary, mode);
       const imported = parsed.map((p) => p.folder);
-      res.json({ ok: true, count: imported.length, imported, mode });
+      res.json({ ok: true, count: imported.length, imported, mode, library });
     }),
   );
 

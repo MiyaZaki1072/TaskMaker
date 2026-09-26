@@ -22,6 +22,9 @@
 
   let replaceTarget = null;
   let confirmAction = null;
+  // What the image grid shows: the list, and name -> problem folders using it (null until loaded)
+  let currentImages = [];
+  let usage = null;
 
   // ========== helpers ==========
 
@@ -123,8 +126,26 @@
   // ========== images ==========
 
   function renderImages(images) {
+    currentImages = images;
     imagesGrid.replaceChildren(...images.map(imageCard));
     imagesEmpty.hidden = images.length > 0;
+  }
+
+  /** "used by 3 problems" on every card at once — a problem that stops using an image shows here too */
+  async function loadUsage() {
+    try {
+      const data = await api('/api/library/usage');
+      usage = data.usage || {};
+    } catch {
+      usage = null; // the cards just leave the count out; the delete check asks again anyway
+    }
+    renderImages(currentImages);
+  }
+
+  function usageText(name) {
+    if (!usage) return '';
+    const folders = usage[name] || [];
+    return folders.length === 0 ? 'not used by any problem' : 'used by ' + folders.length + ' problem' + (folders.length === 1 ? '' : 's');
   }
 
   function imageCard(image) {
@@ -147,7 +168,10 @@
     name.textContent = ref;
     const meta = document.createElement('span');
     meta.className = 'lib-image-meta';
-    meta.textContent = formatSize(image.size);
+    const used = usageText(image.name);
+    meta.textContent = formatSize(image.size) + (used ? ' · ' + used : '');
+    const folders = usage && usage[image.name];
+    if (folders && folders.length > 0) meta.title = folders.join('\n');
 
     const actions = document.createElement('div');
     actions.className = 'lib-image-actions';
@@ -177,7 +201,9 @@
       renderSnippets(data.snippets || []);
     } catch (err) {
       toast('Could not load the library: ' + err.message, 'error');
+      return;
     }
+    loadUsage();
   }
 
   async function uploadImage(file, name) {

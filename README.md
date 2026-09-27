@@ -78,7 +78,7 @@ That opens the dashboard on `http://127.0.0.1:4322`. It binds loopback only and 
 password — it is a single-user tool on your own machine, and the problems live in `problems/` as
 ordinary files you can edit in any editor.
 
-**Requirements:** Node.js 18 or newer. PDF export downloads Chromium on first use via Puppeteer.
+**Requirements:** Node.js 22.12 or newer (Puppeteer needs it). PDF export downloads Chromium on first use via Puppeteer.
 
 If you point it at a network interface or set `NODE_ENV=production`, it requires `STUDIO_PASSWORD`
 and refuses to start without one.
@@ -104,8 +104,8 @@ rather than incidental:
 built for a small group of trusted authors behind a password, not for untrusted public sign-ups.
 If you need to know *who* changed a problem, this is not the right tool yet.
 
-Found a security problem? Please open an issue — or, for anything sensitive, contact the
-maintainer privately rather than filing publicly.
+Found a security problem? Please report it privately — see [SECURITY.md](SECURITY.md) — rather
+than opening a public issue.
 
 ---
 
@@ -192,12 +192,15 @@ That YAML renders to this — the same template the PDF export uses, so the prev
 | Command | Covers |
 |---|---|
 | `npm run typecheck` | TypeScript, plus a syntax check of the browser scripts |
+| `npm test` | Every test below except `test:assets`, with a pass/fail summary. CI runs it along with `typecheck` and `validate` |
 | `npm run verify:security` | Auth, sessions, CSRF, upload limits, rate limiting |
 | `npm run verify:zip` | ZIP export and import, including collision handling |
 | `npm run test:text` | Text and maths rendering regressions |
+| `npm run test:ranking` | The scoreboard maker: CMS ranking parsing, sorting, medal cutoffs, PNG stitching |
 | `npm run test:assets` | Image handling (requires a database) |
 | `npm run test:library` | The shared library: `global/` images, snippets, usage counts, ZIP flattening, library backup and restore. Its cross-instance checks run only with a database |
 
+The tests live in `test/`, with their input problems and HTML snapshots in `test/fixtures/`.
 CI runs these on every push and pull request, plus a container build that asserts Chromium, the
 Thai fonts and the runtime files are really in the image, and that the server refuses to start
 without a password. `test:assets` is the exception — it needs a live database, so it is run
@@ -223,18 +226,31 @@ instance is never served stale by another.
 | Path | Contents |
 |---|---|
 | `src/render.ts` | YAML → validated model → HTML. Shared by preview and PDF |
+| `src/text.ts` | The writing syntax: paragraphs, lists, bold, tables, maths, images |
 | `src/studio-server.ts` | The dashboard's HTTP routes |
+| `src/studio-pages.ts` | HTML shells of the dashboard, editor, library, scoreboard and sign-in pages |
+| `src/studio-public/` | Browser-side CSS and JavaScript, one script per page |
+| `src/server.ts` | Single-problem server used by `npm run preview` and PDF export |
+| `src/problem-ops.ts` | Create, validate and sanitise problems — shared by the CLI and the dashboard |
 | `src/auth.ts` | Sign-in, sessions, cross-site checks |
 | `src/storage-db.ts` | Postgres storage and working-copy reconciliation |
-| `src/library.ts` | The shared library: `global/` images and text snippets |
 | `src/db.ts` | Connection pool and query helpers |
+| `src/library.ts` | The shared library: `global/` images and text snippets |
+| `src/scoreboard.ts` | Scoreboard maker: CMS ranking → printable scoreboard |
 | `src/pdf-export.ts` | Chromium-driven PDF rendering |
 | `src/booklet.ts` | Cover page and table of contents |
-| `src/studio-public/` | Browser-side CSS and JavaScript |
+| `src/png-stitch.ts` | Joins screenshot strips into one tall PNG |
+| `src/errors.ts` | `ProblemError`: plain-language errors shown to authors |
+| `src/fs-atomic.ts` | Atomic file writes and content versions, so concurrent requests never see a half-written file |
 | `config/schema.ts` | Zod schema for `problem.yaml` |
 | `templates/render.hbs` | Problem layout template |
 | `assets/style.css` | Print styles, page breaks, typography |
 | `assets/fonts/` | TH Sarabun New, JetBrains Mono |
+| `scripts/` | Command-line entry points behind `npm run …` |
+| `test/` | Regression tests and their fixtures |
+
+Want to change something? [CONTRIBUTING.md](CONTRIBUTING.md) maps common changes to the files
+involved and lists what to run before opening a pull request.
 
 ---
 

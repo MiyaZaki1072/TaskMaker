@@ -1,11 +1,21 @@
 import http from 'node:http';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import AdmZip from 'adm-zip';
-import { createStudioApp } from '../src/studio-server.js';
-import { PROBLEMS_DIR, loadProblem } from '../src/render.js';
+
+// Work in a scratch copy, never the repo's problems/: this script creates and rm -rf's fixed folder
+// names, which would delete a real problem that happened to share one. render.ts reads these at
+// import time, so they are set before the dynamic imports in runVerification(). (It still seeds the
+// scratch copy from problems/ — reading your problems, never writing them.)
+const SCRATCH = fs.mkdtempSync(path.join(os.tmpdir(), 'verify-zip-'));
+process.env.PROBLEMS_DIR = path.join(SCRATCH, 'problems');
+process.env.LIBRARY_DIR = path.join(SCRATCH, 'library');
+process.env.DIST_DIR = path.join(SCRATCH, 'dist');
 
 async function runVerification() {
+  const { createStudioApp } = await import('../src/studio-server.js');
+  const { PROBLEMS_DIR, loadProblem } = await import('../src/render.js');
   console.log('--- Starting ZIP export/import & delete-problem tests ---\n');
 
   // 1. Set up a test server
@@ -188,18 +198,8 @@ author: "Test Author"
     console.log('  🎉 Summary: all 6/6 tests passed!');
     console.log('======================================================\n');
   } finally {
-    if (fs.existsSync(targetDir)) {
-      fs.rmSync(targetDir, { recursive: true, force: true });
-    }
-    if (fs.existsSync(targetDirCopy)) {
-      fs.rmSync(targetDirCopy, { recursive: true, force: true });
-    }
-    try {
-      fs.rmSync(fixtureDir, { recursive: true, force: true });
-    } catch {
-      /* already gone */
-    }
     server.close();
+    fs.rmSync(SCRATCH, { recursive: true, force: true });
   }
 }
 

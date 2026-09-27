@@ -35,22 +35,12 @@ jobs:
       - name: Validate problem files
         run: npm run validate
 
-      - name: Text rendering regression tests
-        run: npm run test:text
-
-      - name: Scoreboard (CMS ranking) tests
-        run: npm run test:ranking
-
-      - name: ZIP export/import tests
-        run: npm run verify:zip
-
-      - name: Global library tests
-        run: npm run test:library
-
-      # Auth, sessions, CSRF, upload limits and rate limiting. This is the check that matters most
-      # on a public repo: the studio is meant to be reachable from the internet.
-      - name: Security tests
-        run: npm run verify:security
+      # Every regression test — text rendering, scoreboard, ZIP, library, and security (auth,
+      # sessions, CSRF, upload and rate limits: the check that matters most on a public repo, since
+      # the studio is meant to be reachable from the internet). The list lives in test/run-all.ts,
+      # so contributors run exactly this locally; the summary at the end names every failure.
+      - name: Regression tests
+        run: npm test
 
   image:
     name: Build the container image

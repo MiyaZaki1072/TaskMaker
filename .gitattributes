@@ -1,0 +1,20 @@
+# Store and check out every text file with LF line endings, on every OS.
+#
+# Without this, Git on Windows (core.autocrlf=true) checks files out with CRLF. The rendered HTML is
+# always LF, so test:text then reports the snapshots in test/fixtures/__snapshots__ as changed even
+# though nothing did. It also keeps diffs free of whole-file line-ending churn between contributors.
+* text=auto eol=lf
+
+# Binary: never touch line endings, never try to diff as text.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.ico  binary
+*.pdf  binary
+*.zip  binary
+*.ttf  binary
+*.otf  binary
+*.woff binary
+*.woff2 binary

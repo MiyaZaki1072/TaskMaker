@@ -25,6 +25,9 @@ COPY tsconfig.json ./
 COPY config ./config
 COPY src ./src
 COPY scripts ./scripts
+# Only so the type-check below covers the tests too; this build stage is discarded, so none of
+# test/ reaches the runtime image.
+COPY test ./test
 
 # Bundles scripts/serve.ts and everything it imports into one build/server.js. Type-checks first,
 # so a type error fails the image build instead of the container's first request.

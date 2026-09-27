@@ -22,7 +22,7 @@ const nonEmptyList = (label: string) =>
     })
     .min(1, `${label} must have at least 1 line`);
 
-export const subtaskSchema = z.object({
+const subtaskSchema = z.object({
   score: z
     .number({
       required_error: 'A subtask must have a score',
@@ -33,7 +33,7 @@ export const subtaskSchema = z.object({
   condition: nonEmpty('the subtask condition'),
 });
 
-export const exampleSchema = z.object({
+const exampleSchema = z.object({
   input: nonEmpty('the example input'),
   output: nonEmpty('the example output'),
   explanation: z.string().trim().min(1).optional(),
@@ -99,7 +99,7 @@ const FIELD_LABELS: Record<string, string> = {
 };
 
 /** Turns a zod path (e.g. ["examples",0,"input"]) into a readable description */
-export function describePath(path: (string | number)[]): string {
+function describePath(path: (string | number)[]): string {
   if (path.length === 0) return 'the problem file';
   const dotted = path.filter((p) => typeof p === 'string').join('.');
   const label = FIELD_LABELS[dotted];

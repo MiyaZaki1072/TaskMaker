@@ -42,7 +42,8 @@ All three must pass — CI runs exactly these, plus a Docker image build. The li
 
 ```text
 src/                   the application
-  studio-server.ts       every HTTP route of the dashboard (pages + /api)
+  studio-server.ts       wires the app together: middleware order, which routes mount where
+  routes/                the HTTP routes, one file per feature (problems, pdf, zip, library…)
   studio-pages.ts        the HTML shell of each page
   studio-public/         browser code — plain JS and CSS, no build step
   render.ts              problem.yaml → validated model → HTML (preview and PDF share it)
@@ -65,11 +66,13 @@ docs/                  deployment guide and screenshots
 | How a problem looks on screen / on paper | `templates/render.hbs`, `assets/style.css` | preview in the studio; `npm run pdf problems/<dir>` |
 | The dashboard page | `src/studio-public/dashboard.js`, `studio.css` | `npm run studio` |
 | The editor page | `src/studio-public/editor.js`, `studio.css` | `npm run studio` |
-| The library page (`global/` images, snippets) | `src/library.ts`, `src/studio-public/library.js` | `npm run test:library` |
-| The scoreboard maker | `src/scoreboard.ts`, `src/studio-public/scoreboard.js` | `npm run test:ranking` |
-| A dashboard API endpoint | `src/studio-server.ts` (search for the path) | `npm run verify:zip`, `npm run verify:security` |
-| Sign-in, sessions, CSRF, rate limits | `src/auth.ts` | `npm run verify:security` |
-| PDF export and booklets | `src/pdf-export.ts`, `src/booklet.ts` | `npm run pdf problems/<dir>`, `npm run pdf:booklet` |
+| The library page (`global/` images, snippets) | `src/library.ts`, `src/routes/library.ts`, `src/studio-public/library.js` | `npm run test:library` |
+| The scoreboard maker | `src/scoreboard.ts`, `src/routes/scoreboard.ts`, `src/studio-public/scoreboard.js` | `npm run test:ranking` |
+| Creating, saving or deleting problems and their images | `src/routes/problems.ts` | `npm run test:smoke` |
+| ZIP export and import | `src/routes/zip.ts` | `npm run verify:zip` |
+| A new page or API endpoint | the matching file in `src/routes/`; a new feature gets a new file, mounted in `src/studio-server.ts` | add it to `test/smoke.ts` |
+| Sign-in, sessions, CSRF, rate limits | `src/auth.ts`, `src/routes/auth.ts` | `npm run verify:security` |
+| PDF export and booklets | `src/pdf-export.ts`, `src/booklet.ts`, `src/routes/pdf.ts` | `npm run pdf problems/<dir>`, `npm run pdf:booklet` |
 | Postgres storage | `src/storage-db.ts`, `src/db.ts` | `npm run test:assets` (needs a database) |
 | The Docker image | `Dockerfile`, `docker-compose.yml` | `docker compose up --build` |
 

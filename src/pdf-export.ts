@@ -18,7 +18,7 @@ import { DIST_DIR, loadProblem } from './render.js';
 import { startServer } from './server.js';
 
 /** Maximum time to wait for Chromium (milliseconds) — allows for a slow machine or large images */
-export const RENDER_TIMEOUT = 30_000;
+const RENDER_TIMEOUT = 30_000;
 
 /**
  * How many problems render at once for Export All and the booklet. Chromium gives each page its
@@ -105,7 +105,7 @@ const CONTAINER_CHROME_ARGS = [
 ];
 
 export async function launchBrowser(): Promise<Browser> {
-  // Self-hosted (ZimaOS): Chromium is installed by the Dockerfile as a system package rather than
+  // Self-hosted (Docker): Chromium is installed by the Dockerfile as a system package rather than
   // downloaded by puppeteer, because the distro package is the one that matches the image's
   // architecture and ships with the shared libraries already present. PUPPETEER_EXECUTABLE_PATH
   // is puppeteer's own conventional name for this; CHROME_PATH is accepted as an alias since it

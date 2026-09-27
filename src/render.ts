@@ -78,7 +78,7 @@ function resolveDisposable(): boolean {
   return requested;
 }
 export const PROBLEMS_DIR_DISPOSABLE = resolveDisposable();
-export const TEMPLATE_FILE = path.join(ROOT, 'templates', 'render.hbs');
+const TEMPLATE_FILE = path.join(ROOT, 'templates', 'render.hbs');
 export const BLANK_TEMPLATE_FILE = path.join(ROOT, 'templates', 'problem.template.yaml');
 
 let seeded = false;
@@ -97,7 +97,7 @@ let seeded = false;
  * truth now (see storage-db.ts), and its reconcile step removes any seed the database does not
  * know about.
  */
-export function seedWorkingCopy(): void {
+function seedWorkingCopy(): void {
   if (seeded || PROBLEMS_DIR === REPO_PROBLEMS_DIR) return;
   seeded = true;
   const seedProblemsDir = REPO_PROBLEMS_DIR;

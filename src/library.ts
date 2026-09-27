@@ -161,7 +161,7 @@ export interface ResolvedLibraryImage {
  * this instance has no copy of *this version*. Null when the library has no such image — even if
  * an old copy is still sitting in the cache.
  */
-export async function resolveLibraryImage(filename: string): Promise<ResolvedLibraryImage | null> {
+async function resolveLibraryImage(filename: string): Promise<ResolvedLibraryImage | null> {
   if (!isDbConfigured()) {
     const version = localVersion(filename);
     return version === null ? null : { file: path.join(IMAGES_DIR, filename), version };
@@ -274,7 +274,7 @@ export async function deleteLibraryImage(rawName: string): Promise<void> {
 }
 
 /**
- * Express handler for GET /library-assets/:name — mounted by both the studio (studio-server.ts)
+ * Express handler for GET /library-assets/:name — mounted by both the studio (routes/assets.ts)
  * and the throwaway server Chromium renders PDFs through (server.ts), so preview, PDF, Export All
  * and the booklet all resolve `global/…` the same way.
  */
@@ -334,7 +334,7 @@ export async function serveLibraryAsset(req: Request, res: Response): Promise<vo
 const GLOBAL_REF_IN_YAML_RE = /(?<![\w./-])(?:\.\/)?global\/([A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?)/g;
 
 /** Every distinct library image name a problem.yaml refers to */
-export function findGlobalRefs(yaml: string): string[] {
+function findGlobalRefs(yaml: string): string[] {
   return [...new Set(Array.from(yaml.matchAll(GLOBAL_REF_IN_YAML_RE), (m) => m[1]!))];
 }
 

@@ -66,7 +66,7 @@ export function isDbConfigured(): boolean {
 }
 
 /**
- * TLS is required by most hosted Postgres providers and actively wrong for the ZimaOS stack,
+ * TLS is required by most hosted Postgres providers and actively wrong for the Docker Compose stack,
  * where Postgres is another container on a private Docker network with no certificate of its own.
  * Asking for TLS there fails the connection outright, so it is opt-in: on when the URL says so,
  * or when PGSSLMODE requests it.
@@ -84,7 +84,7 @@ function sslConfig(conn: string): pg.PoolConfig['ssl'] {
 let pool: pg.Pool | undefined;
 
 /** The shared connection pool. Created on first use so importing this module never connects. */
-export function getPool(): pg.Pool {
+function getPool(): pg.Pool {
   if (!pool) {
     const conn = connectionString();
     if (!conn) throw new Error('Database is not configured (set DATABASE_URL)');
@@ -98,7 +98,7 @@ export function getPool(): pg.Pool {
       connectionTimeoutMillis: 10_000,
     });
     // Without a listener, a connection dropped while idle (Postgres restarting, which on a home
-    // server happens every time the ZimaOS box reboots) is an unhandled 'error' event and takes
+    // server happens every time the machine reboots) is an unhandled 'error' event and takes
     // the whole studio process down with it. The pool discards the bad client and reconnects on
     // the next query by itself; this only stops the crash.
     pool.on('error', (err) => {

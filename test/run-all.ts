@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 const TEST_DIR = path.dirname(fileURLToPath(import.meta.url));
 
 const TESTS: { file: string; covers: string }[] = [
+  { file: 'smoke.ts', covers: 'every page, asset and API route answers' },
   { file: 'text-regression.ts', covers: 'text and maths rendering' },
   { file: 'ranking-regression.ts', covers: 'scoreboard maker' },
   { file: 'verify-zip.ts', covers: 'ZIP export / import' },

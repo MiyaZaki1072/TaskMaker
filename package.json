@@ -20,6 +20,7 @@
     "test": "tsx test/run-all.ts",
     "verify:zip": "tsx test/verify-zip.ts",
     "verify:security": "tsx test/verify-security.ts",
+    "test:smoke": "tsx test/smoke.ts",
     "test:text": "tsx test/text-regression.ts",
     "test:assets": "tsx test/asset-regression.ts",
     "test:ranking": "tsx test/ranking-regression.ts",
@@ -50,9 +51,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@types/adm-zip": "^0.5.8",
     "@types/express": "^5.0.6",
-    "@types/katex": "^0.16.7",
     "@types/multer": "^2.2.0",
     "@types/node": "^22.10.2",
     "@types/pg": "^8.23.1",

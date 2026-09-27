@@ -134,11 +134,20 @@ async function runSecurityTests() {
     }
 
     // 3.10 The health probe has to answer without credentials or the container is marked
-    //      unhealthy forever and ZimaOS will keep restarting it.
+    //      unhealthy forever (and anything that restarts unhealthy containers restarts it in a loop).
     const resHealth = await fetch(`${baseUrl}/healthz`);
     console.log(`- GET /healthz without credentials: HTTP status = ${resHealth.status}`);
     if (resHealth.status !== 200) {
       throw new Error(`Expected HTTP 200 but got ${resHealth.status}`);
+    }
+
+    // The sign-in page shows the site icon, so it must load before signing in — and it must be
+    // the only thing next to it that does: the studio's own scripts stay behind the gate.
+    const resIcon = await fetch(`${baseUrl}/favicon.svg`);
+    const resScript = await fetch(`${baseUrl}/studio-assets/editor.js`, { redirect: 'manual' });
+    console.log(`- Without credentials: GET /favicon.svg = ${resIcon.status}, GET /studio-assets/editor.js = ${resScript.status}`);
+    if (resIcon.status !== 200 || resScript.status === 200) {
+      throw new Error('The site icon must be public, and the studio scripts must not be');
     }
 
     // 3.11 Signing out must revoke the cookie the browser is holding

@@ -1,5 +1,5 @@
 /**
- * Long-running server entrypoint for the self-hosted (ZimaOS / Docker) deployment.
+ * Long-running server entrypoint for the self-hosted Docker deployment (docs/DEPLOY.md).
  *
  * How this differs from `npm run studio` (scripts/studio.ts), which is the same app:
  *   - binds 0.0.0.0 by default, because nothing outside the container could reach it otherwise
@@ -31,7 +31,7 @@ async function main(): Promise<void> {
     console.error('  a database would mean every problem written is lost on the next restart, so it');
     console.error('  stops here instead.');
     console.error('');
-    console.error('  In the ZimaOS stack this is set for you by docker-compose.yml.');
+    console.error('  With Docker Compose this is set for you by docker-compose.yml (see docs/DEPLOY.md).');
     console.error('');
     process.exit(1);
   }
@@ -50,7 +50,7 @@ async function main(): Promise<void> {
     console.error('  would let anyone who can reach the port read, rewrite and delete every');
     console.error('  problem. It stops here instead.');
     console.error('');
-    console.error('  In the ZimaOS stack this comes from the .env file next to docker-compose.yml.');
+    console.error('  With Docker Compose it comes from the .env file next to docker-compose.yml.');
     console.error('  For a quick local run:  STUDIO_PASSWORD=something npm run serve');
     console.error('');
     process.exit(1);

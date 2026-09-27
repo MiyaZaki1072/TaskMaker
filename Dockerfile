@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1
 #
-# Problem Studio — self-hosted image for ZimaOS.
+# Problem Studio — self-hosted image, built by docker compose (see docs/DEPLOY.md).
 #
-# Built on the ZimaOS box itself (docker compose builds it), which is why there is no fixed
-# architecture here: the same Dockerfile produces an amd64 image on a ZimaBoard/mini-PC and an
+# Built on the server itself (docker compose builds it), which is why there is no fixed
+# architecture here: the same Dockerfile produces an amd64 image on an x86 server and an
 # arm64 one on ARM hardware, because every base image and apt package below exists for both.
 #
 # Chromium comes from Debian rather than from puppeteer's own download. Puppeteer only publishes
@@ -75,7 +75,7 @@ RUN npm ci --omit=dev --omit=optional && npm cache clean --force
 COPY templates ./templates
 COPY assets ./assets
 # The browser-side files (studio.css, dashboard.js, editor.js), served at /studio-assets from
-# ROOT/src/studio-public by studio-server.ts. Easy to miss: esbuild bundles the *server* code into
+# ROOT/src/studio-public by src/routes/assets.ts. Easy to miss: esbuild bundles the *server* code into
 # build/server.js, but these are never imported — the browser fetches them off disk. Without this
 # the app serves its HTML fine and then 404s every stylesheet and script, so the dashboard loads
 # unstyled and every button is dead.
@@ -94,7 +94,7 @@ USER node
 EXPOSE 4322
 
 # Fails the container healthcheck if the studio stops answering, so `docker compose ps` and the
-# ZimaOS dashboard show it as unhealthy rather than "running" while it serves errors.
+# server's dashboard show it as unhealthy rather than "running" while it serves errors.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||4322)+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 

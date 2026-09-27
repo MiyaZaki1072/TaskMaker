@@ -44,8 +44,8 @@ Open `http://localhost:4322` and sign in with the password you set.
 The first build takes a few minutes — it installs Chromium and Thai fonts into the image. After
 that, startup is seconds.
 
-Full deployment guide, including ZimaOS, Cloudflare tunnels, backups and troubleshooting:
-**[docs/ZIMAOS-DEPLOY.md](docs/ZIMAOS-DEPLOY.md)**.
+Full deployment guide for any Linux server — HTTPS with a reverse proxy or tunnel, firewall,
+automatic backups and troubleshooting: **[docs/DEPLOY.md](docs/DEPLOY.md)**.
 
 ### Configuration
 
@@ -193,6 +193,7 @@ That YAML renders to this — the same template the PDF export uses, so the prev
 |---|---|
 | `npm run typecheck` | TypeScript, plus a syntax check of the browser scripts |
 | `npm test` | Every test below except `test:assets`, with a pass/fail summary. CI runs it along with `typecheck` and `validate` |
+| `npm run test:smoke` | Boots the studio and checks every page, stylesheet, script and API route answers — catches broken paths `tsc` cannot see |
 | `npm run verify:security` | Auth, sessions, CSRF, upload limits, rate limiting |
 | `npm run verify:zip` | ZIP export and import, including collision handling |
 | `npm run test:text` | Text and maths rendering regressions |
@@ -227,7 +228,8 @@ instance is never served stale by another.
 |---|---|
 | `src/render.ts` | YAML → validated model → HTML. Shared by preview and PDF |
 | `src/text.ts` | The writing syntax: paragraphs, lists, bold, tables, maths, images |
-| `src/studio-server.ts` | The dashboard's HTTP routes |
+| `src/studio-server.ts` | Wires the dashboard app together: middleware order and where each group of routes mounts |
+| `src/routes/` | The HTTP routes, one file per feature: `problems`, `pdf`, `zip`, `library`, `scoreboard`, `pages`, `assets`, `auth` |
 | `src/studio-pages.ts` | HTML shells of the dashboard, editor, library, scoreboard and sign-in pages |
 | `src/studio-public/` | Browser-side CSS and JavaScript, one script per page |
 | `src/server.ts` | Single-problem server used by `npm run preview` and PDF export |

@@ -38,6 +38,7 @@ function shellHead(title: string): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(title)}</title>
+<link rel="icon" type="image/svg+xml" href="${asset('/favicon.svg')}">
 <link rel="stylesheet" href="${asset('/assets/style.css')}">
 <link rel="stylesheet" href="${asset('/studio-assets/studio.css')}">
 </head>`;
@@ -467,7 +468,7 @@ export function loginPage(info: LoginPageInfo = {}): string {
   const error = info.error
     ? `<p class="error" role="alert">${escapeHtml(info.error)}</p>`
     : '';
-  // Only ever a same-site path (studio-server.ts rejects anything else), so this cannot be turned
+  // Only ever a same-site path (safeNext in routes/auth.ts rejects anything else), so this cannot be turned
   // into an open redirect that sends someone to another site after they log in.
   const next = info.next ? `<input type="hidden" name="next" value="${escapeHtml(info.next)}">` : '';
 
@@ -477,6 +478,7 @@ export function loginPage(info: LoginPageInfo = {}): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sign in — Problem Studio</title>
+<link rel="icon" type="image/svg+xml" href="${asset('/favicon.svg')}">
 <style>
   :root {
     color-scheme: light dark;

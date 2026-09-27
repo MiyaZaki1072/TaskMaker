@@ -61,6 +61,7 @@ jobs:
             /app/src/studio-public/studio.css \
             /app/src/studio-public/dashboard.js \
             /app/src/studio-public/editor.js \
+            /app/src/studio-public/favicon.svg \
             /app/templates/render.hbs \
             /app/assets/style.css \
             /app/node_modules/katex/dist/katex.min.css

@@ -203,7 +203,7 @@ const knownAssets = new Map<string, Set<string>>();
  *     rather than warning about an image that is very likely fine
  * Missing a typo warning is a small cost; crying wolf about intact images is the bug being fixed.
  */
-export function assetMayExistInStorage(folder: string, filename: string): boolean {
+function assetMayExistInStorage(folder: string, filename: string): boolean {
   if (!isDbConfigured()) return false;
   const known = knownAssets.get(folder);
   if (!known) return true;
@@ -657,7 +657,7 @@ interface ParsedZipProblem {
 }
 
 /**
- * Persists a whole parsed ZIP import (studio-server.ts does the archive parsing and name-collision
+ * Persists a whole parsed ZIP import (routes/zip.ts does the archive parsing and name-collision
  * handling, unchanged from before — this only decides where the result is written). Local-only
  * mode writes files directly; database mode pushes every problem plus its assets in one atomic
  * transaction.

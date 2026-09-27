@@ -1,4 +1,4 @@
-# Problem Studio on ZimaOS.
+# Problem Studio — self-hosted with Docker Compose. Full guide: docs/DEPLOY.md
 #
 #   cp .env.example .env     # then edit it — STUDIO_PASSWORD and POSTGRES_PASSWORD are required
 #   docker compose up -d --build
@@ -48,12 +48,13 @@ services:
       # Optional. Leave unset and the app generates a session secret on first boot and keeps it in
       # Postgres, so logins survive restarts without you having to manage another secret.
       SESSION_SECRET: ${SESSION_SECRET:-}
-      # Sessions are marked Secure by default, which is correct behind the Cloudflare tunnel
-      # (browsers see HTTPS). Set to 0 only if you reach the studio over plain http:// on the LAN,
-      # where a Secure cookie would be dropped and login would appear to silently fail.
+      # Sessions are marked Secure by default, which is correct behind an HTTPS reverse proxy or a
+      # tunnel (browsers see HTTPS). Set to 0 only if you reach the studio over plain http:// on the
+      # LAN, where a Secure cookie would be dropped and login would appear to silently fail.
       SECURE_COOKIES: ${SECURE_COOKIES:-1}
-      # One proxy hop: cloudflared. Lets the login throttle see the real client IP rather than
-      # counting every visitor on the planet as the same one.
+      # One proxy hop: the reverse proxy or tunnel in front of the app. Lets the login throttle see
+      # the real client IP rather than counting every visitor as the same one. Set 0 when nothing
+      # proxies the app, or a client could spoof its IP past the throttle.
       TRUST_PROXY: ${TRUST_PROXY:-1}
       # The public origin, used to reject cross-site form posts. Set it to your real URL.
       PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-}
@@ -61,12 +62,13 @@ services:
     # problem. --disable-dev-shm-usage (src/pdf-export.ts) covers the rest.
     shm_size: 512mb
     ports:
-      # Published so cloudflared — whether it runs as a ZimaOS app, another container, or on the
-      # host — can reach it, and so you can open the studio directly on the LAN.
-      # Set STUDIO_BIND=127.0.0.1 in .env to restrict it to the box itself.
+      # Published so a reverse proxy or tunnel — on the host or in another container — can reach
+      # it, and so you can open the studio directly on the LAN. Set STUDIO_BIND=127.0.0.1 in .env
+      # to restrict it to this machine (e.g. when the proxy runs on the host).
       - '${STUDIO_BIND:-0.0.0.0}:${STUDIO_PORT:-4322}:4322'
     networks: [studio]
 
+    # App-store metadata (title, icon, port) for CasaOS-style dashboards. Plain Docker ignores it.
     x-casaos:
       architectures:
         - amd64

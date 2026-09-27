@@ -162,7 +162,7 @@ const INLINE_TAGS: Record<string, [open: string, close: string]> = {
  * [color=…] takes a name from this list only — it becomes a class, never raw CSS, so a problem file
  * cannot inject styles, and every colour is one chosen to stay legible when printed.
  */
-export const TEXT_COLORS = ['red', 'blue', 'green', 'orange', 'gray'] as const;
+const TEXT_COLORS = ['red', 'blue', 'green', 'orange', 'gray'] as const;
 
 interface InlineTag {
   name: string;

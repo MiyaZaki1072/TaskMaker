@@ -9,7 +9,7 @@ import { writeFileAtomic } from './fs-atomic.js';
 import { BLANK_TEMPLATE_FILE, listProblemDirs, PROBLEMS_DIR, renderProblem, toDisplayPath } from './render.js';
 
 /** Strips characters that are illegal in folder names on Windows/macOS/Linux */
-export function toFolderName(name: string): string {
+function toFolderName(name: string): string {
   const cleaned = name
     .trim()
     .replace(/[\\/:*?"<>|]/g, '')
@@ -199,7 +199,7 @@ export function saveProblemAsset(dir: string, filename: string, data: Buffer): A
  * database until something asks for it. Throwing here meant the caller never reached
  * deleteAssetInStorage, so "delete this image" failed with a bogus "not found in this problem" and
  * left the database row behind. Whether the image existed at all is the database's answer to give
- * (see the DELETE route in studio-server.ts), not local disk's.
+ * (see the DELETE route in routes/problems.ts), not local disk's.
  */
 export function deleteProblemAsset(dir: string, filename: string): boolean {
   const safe = sanitizeAssetName(filename);
@@ -207,14 +207,4 @@ export function deleteProblemAsset(dir: string, filename: string): boolean {
   if (!fs.existsSync(full)) return false;
   fs.unlinkSync(full);
   return true;
-}
-
-/** Deletes a problem folder and everything inside it */
-export function deleteProblem(dir: string): void {
-  if (!fs.existsSync(dir)) {
-    throw new ProblemError('Problem not found', {
-      hint: 'This problem may have already been deleted — go back to the main page and pick another one',
-    });
-  }
-  fs.rmSync(dir, { recursive: true, force: true });
 }

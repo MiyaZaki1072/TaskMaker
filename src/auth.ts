@@ -14,7 +14,7 @@
  * that has none. What changed is everything around the password:
  *
  *   - it is compared in constant time, so the comparison cannot be used to guess it piece by piece
- *   - failed attempts are rate limited per IP (see studio-server.ts)
+ *   - failed attempts are rate limited per IP (see routes/auth.ts)
  *   - the browser holds a signed, expiring token rather than the password itself, so a session
  *     can be revoked and the password is not sitting in the browser's credential store
  *   - changing STUDIO_PASSWORD invalidates every existing session, because the password's
@@ -112,7 +112,7 @@ async function loadSessionSecret(): Promise<Buffer> {
   return crypto.randomBytes(32);
 }
 
-export function sessionSecret(): Promise<Buffer> {
+function sessionSecret(): Promise<Buffer> {
   if (!secretPromise) secretPromise = loadSessionSecret();
   return secretPromise;
 }

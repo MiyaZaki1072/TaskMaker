@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>Problem Studio</title>
+  <rect width="64" height="64" rx="14" fill="#1f6feb"/>
+  <path d="M19 11H37L46 20V53H19Z" fill="#ffffff"/>
+  <path d="M37 11L46 20H37Z" fill="#cfe0ff"/>
+  <rect x="24" y="28" width="17" height="3.5" rx="1.75" fill="#1f6feb"/>
+  <rect x="24" y="35.5" width="17" height="3.5" rx="1.75" fill="#1f6feb"/>
+  <rect x="24" y="43" width="11" height="3.5" rx="1.75" fill="#1f6feb"/>
+</svg>

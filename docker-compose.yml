@@ -34,7 +34,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: rywcc-problem-studio:local
+    # CI publishes this on every green push to main; Watchtower below pulls it. Use
+    # `docker compose up -d --build` to build from local source instead.
+    image: ghcr.io/miyazaki1072/taskmaker:latest
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
     restart: unless-stopped
     depends_on:
       db:

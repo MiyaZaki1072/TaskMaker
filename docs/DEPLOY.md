@@ -184,7 +184,11 @@ Be aware that Docker publishes ports by editing iptables directly, which can byp
 ## Day-to-day
 
 ```sh
-# Update after pulling new code
+# Update: automatic. Push to main, CI tests and publishes the image, Watchtower (in the compose
+# file) pulls it within ~5 min. Force it now:
+docker compose pull app && docker compose up -d
+
+# Build from local source instead (offline / unpublished changes)
 git pull && docker compose up -d --build
 
 # Back up — the database is the only thing worth backing up

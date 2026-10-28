@@ -89,6 +89,19 @@ services:
       index: /
       webui_port: 4322
 
+  # Auto-update: every 5 min checks GHCR for a new app image, pulls it, restarts only `app`
+  # (label opt-in), removes the old image. Needs the Docker socket, which is root-equivalent on the
+  # host: keep this service minimal and do not add other labels/ports to it.
+  watchtower:
+    image: nickfedor/watchtower:latest
+    restart: unless-stopped
+    environment:
+      WATCHTOWER_LABEL_ENABLE: 'true'
+      WATCHTOWER_POLL_INTERVAL: '300'
+      WATCHTOWER_CLEANUP: 'true'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
 volumes:
   studio-db:
 
